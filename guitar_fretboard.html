@@ -2460,7 +2460,7 @@ function computeDyads(chordNoteIndices, rootNote, tuningMidi, numFrets, maxCount
 
 // Build a compact 2-string SVG for a dyad shape.
 function buildDyadSVG(dyad, tuningMidi, color) {
-  const W = 48, PL = 11, PR = 5, PT = 18, fretH = 14, nFrets = 4;
+  const W = 52, PL = 16, PR = 5, PT = 18, fretH = 14, nFrets = 4;
   const strW = W - PL - PR;
   const H = PT + fretH * nFrets + 8;
   let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
@@ -2470,7 +2470,7 @@ function buildDyadSVG(dyad, tuningMidi, color) {
   const nutColor = fretWindow === 1 ? '#f0ead6' : '#555570';
   svg += `<rect x="${PL}" y="${PT-nutH}" width="${strW}" height="${nutH}" fill="${nutColor}" rx="1"/>`;
   if (fretWindow > 1) {
-    svg += `<text x="${PL-2}" y="${PT+fretH*0.55}" text-anchor="end" font-family="JetBrains Mono" font-size="7" fill="#8888aa">${fretWindow}</text>`;
+    svg += `<text x="${PL-3}" y="${PT+fretH*0.65}" text-anchor="end" font-family="JetBrains Mono" font-size="9" font-weight="700" fill="#c0c0d0">${fretWindow}</text>`;
   }
   // Fret lines
   for (let f = 1; f <= nFrets; f++) {
