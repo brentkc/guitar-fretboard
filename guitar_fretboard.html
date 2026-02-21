@@ -1224,6 +1224,8 @@ function draw(now) {
       }
       const drawX = x;
       const drawY = y + yOffset;
+      // If a chord voicing is active, only show notes in that voicing — hide all others
+      if (hasActiveVoicing && chordHits.length > 0 && !activeVoicingKeys.has(vi + ':' + f)) continue;
       const drawAlpha = Math.min(1, animT * 1.5);
 
       ctx.globalAlpha = drawAlpha;
@@ -2167,7 +2169,11 @@ function computeVoicings(noteIndices, tuningMidi, stringOrder, numFrets, maxSpan
   }
   const voicings = [];
   function findV(depth, current, usedStrings) {
-    if (depth === noteIndices.length) { voicings.push([...current]); return; }
+    if (depth === noteIndices.length) {
+      // Exclude voicings that use open strings — only closed/barre shapes
+      if (current.some(p => p.f === 0)) return;
+      voicings.push([...current]); return;
+    }
     const positions = notePositions[noteIndices[depth]];
     for (const p of positions) {
       if (usedStrings.has(p.vi)) continue;
