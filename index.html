@@ -427,6 +427,43 @@
   .cdg-nav button:hover { border-color: var(--accent); color: var(--text-primary); }
   .cdg-nav span { font-size: 0.68em; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
 
+  /* ===== DYAD SECTION ===== */
+  .dyad-section {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .dyad-section-label {
+    font-size: 0.6em;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .dyad-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .dyad-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 5px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .dyad-card:hover { border-color: var(--accent); }
+  .dyad-label {
+    font-size: 0.55em;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 2px;
+  }
+
   /* ===== TAB PLAYER ===== */
   .tab-textarea {
     width: 100%;
@@ -487,7 +524,7 @@
 <div class="app">
   <div class="header" style="position:relative;">
     <h1>Guitar Scale Explorer</h1>
-    <p>Visualize scales, chords, and how they overlap on the fretboard</p>
+    <p>Visualize scales, chords, and how they overlap on the fretboard <span style="font-size:0.7em;color:var(--text-muted);">v2.2</span></p>
     <div style="position:absolute;top:50%;right:0;transform:translateY(-50%);display:flex;align-items:center;gap:10px;">
       <a href="tutorials.html" style="font-size:0.78em;font-weight:600;color:var(--text-secondary);text-decoration:none;padding:5px 12px;border:1px solid var(--border);border-radius:20px;background:var(--bg-tertiary);transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--text-primary)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-secondary)'">📖 Tutorials</a>
       <button class="mode-pill" id="modePill" onclick="toggleMode()" title="Toggle Simple / Advanced mode">Simple &#8644; Advanced</button>
@@ -498,7 +535,7 @@
     <div class="toolbar-group">
       <span class="toolbar-label">View</span>
       <button class="toggle-btn" id="flipH" onclick="toggleFlipH()" title="Flip for left-handed">&#8596; Flip H</button>
-      <button class="toggle-btn" id="flipV" onclick="toggleFlipV()" title="Flip string order">&#8597; Flip V</button>
+      <button class="toggle-btn active" id="flipV" onclick="toggleFlipV()" title="Flip string order">&#8597; Flip V</button>
       <button class="toggle-btn advanced-only" id="rotateBtn" onclick="toggleVertical()" title="Rotate fretboard vertical with falling notes">&#10227; Vertical</button>
     </div>
     <div class="toolbar-group">
@@ -562,7 +599,10 @@
         <div style="color:var(--text-muted); font-size:0.9em;">Select a root, then pick scales and/or chords below.</div>
         <div style="margin-top:8px;">
           <span style="display:inline-block; width:12px; height:12px; background:#4FC3F7; border-radius:50%; vertical-align:middle;"></span> Scale notes = circles<br>
-          <span style="display:inline-block; width:12px; height:12px; border:2.5px solid #e84393; border-radius:3px; vertical-align:middle;"></span> Chord tones = square rings<br>
+          <span style="display:inline-block; width:12px; height:12px; border:2.5px solid #ff4757; border-radius:3px; vertical-align:middle;"></span> <span style="color:#ff4757;">Root</span> &nbsp;
+          <span style="display:inline-block; width:12px; height:12px; border:2.5px solid #fdcb6e; border-radius:3px; vertical-align:middle;"></span> <span style="color:#fdcb6e;">3rd</span> &nbsp;
+          <span style="display:inline-block; width:12px; height:12px; border:2.5px solid #00cec9; border-radius:3px; vertical-align:middle;"></span> <span style="color:#00cec9;">5th</span> &nbsp;
+          <span style="display:inline-block; width:12px; height:12px; border:2.5px solid #a29bfe; border-radius:3px; vertical-align:middle;"></span> <span style="color:#a29bfe;">7th</span><br>
           <span style="display:inline-block; width:14px; height:14px; background:var(--accent); border-radius:3px; transform:rotate(45deg); vertical-align:middle; margin-right:2px;"></span> Root note = diamond<br>
           <span style="display:inline-block; width:12px; height:12px; background:#ffd700; border:2px solid #fff; border-radius:50%; vertical-align:middle;"></span> Common = gold
         </div>
@@ -752,6 +792,23 @@ const CHORD_COLORS = [
   '#e17055', '#00b894', '#fab1a0', '#a29bfe',
 ];
 
+// Interval role colours — used on fretboard & chord diagrams for per-note differentiation
+// Root=red, 3rds=amber, 5th=teal, 7ths=violet, 2nds=sky, 4th=mint, tritone=orange, 6ths=lime
+const CHORD_INTERVAL_COLORS = {
+  0:  '#ff4757', // Root        — red
+  1:  '#74b9ff', // b2          — sky blue
+  2:  '#74b9ff', // M2/sus2     — sky blue
+  3:  '#fdcb6e', // m3          — amber
+  4:  '#fdcb6e', // M3          — amber
+  5:  '#55efc4', // P4/sus4     — mint
+  6:  '#e17055', // Tritone     — orange
+  7:  '#00cec9', // P5          — teal
+  8:  '#a3cb38', // b6          — lime
+  9:  '#a3cb38', // M6          — lime
+  10: '#a29bfe', // b7          — violet
+  11: '#a29bfe', // M7          — violet
+};
+
 // Highlight group colors for triads/dyads — max contrast, bold, unmistakable
 const HIGHLIGHT_COLORS = [
   '#ff1744', // vivid red
@@ -784,8 +841,8 @@ const SIMPLE_CHORDS = new Set([
   'Dominant 7', 'Major 7', 'Minor 7',
 ]);
 const SIMPLE_CHORD_CAT_NAMES = {
-  'Triads': 'Basic Triads',
-  'Seventh Chords': 'Common 7ths',
+  'Triads': 'Chords',
+  'Seventh Chords': 'Extended Chords',
 };
 const SIMPLE_TUNINGS = new Set(['standard', 'dropD', 'halfDown', 'fullDown']);
 
@@ -795,7 +852,7 @@ let state = {
   selectedScales: [],
   selectedChords: [],
   flipH: false,
-  flipV: false,
+  flipV: true,
   labelMode: 'notes',
   tuning: 'standard',
   numFrets: 15,
@@ -814,12 +871,28 @@ let state = {
   tabLoop: false,
   chordShapeVoicings: {}, // cacheKey -> voicings array
   chordShapeIndex: {},    // cacheKey -> current index
+  scalePositionIndex: 0,  // current position (0-4)
+  scalePositionCache: {}, // cacheKey -> [{vi,f}[]]
 };
 
 // ===== CANVAS =====
 const canvas = document.getElementById('fretboard');
 const ctx = canvas.getContext('2d');
 let dpr = window.devicePixelRatio || 1;
+
+// Click a note dot to hear it
+canvas.style.cursor = 'pointer';
+canvas.addEventListener('click', function(e) {
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX - rect.left) * (canvas.width / rect.width / dpr);
+  const cy = (e.clientY - rect.top) * (canvas.height / rect.height / dpr);
+  let best = null, bestD = FB.noteRadius * 2.5;
+  for (const n of drawnNoteHits) {
+    const d = Math.hypot(n.x - cx, n.y - cy);
+    if (d < bestD) { bestD = d; best = n; }
+  }
+  if (best) playFretboardNote(best.vi, best.f);
+});
 
 const FB = {
   paddingLeft: 60,
@@ -873,7 +946,7 @@ function getScaleHits(noteIndex) {
     const iv = getInterval(state.rootNote, noteIndex);
     if (SCALES[name].intervals.includes(iv)) {
       const ci = state.selectedScales.indexOf(name) % SCALE_COLORS.length;
-      results.push({ name, color: SCALE_COLORS[ci], type: 'scale' });
+      results.push({ name, color: SCALE_COLORS[ci], type: 'scale', interval: iv });
     }
   }
   return results;
@@ -886,7 +959,7 @@ function getChordHits(noteIndex) {
     const iv = getInterval(state.rootNote, noteIndex);
     if (CHORDS[name].intervals.includes(iv)) {
       const ci = state.selectedChords.indexOf(name) % CHORD_COLORS.length;
-      results.push({ name, color: CHORD_COLORS[ci], type: 'chord' });
+      results.push({ name, color: CHORD_COLORS[ci], type: 'chord', interval: iv });
     }
   }
   return results;
@@ -931,6 +1004,7 @@ function getNoteAnimProgress(fret, stringVi, now) {
 
 // ===== DRAWING =====
 function draw(now) {
+  drawnNoteHits.length = 0; // reset click targets each frame
   const vert = state.vertical;
   const { w, h } = resizeCanvas();
   ctx.clearRect(0, 0, w, h);
@@ -1144,6 +1218,54 @@ function draw(now) {
   const hasChords = state.selectedChords.length > 0;
   const rootOnly = !hasScales && !hasChords;
 
+  // ===== BUILD ACTIVE VOICING LOOKUP =====
+  // For each chord, get the currently-selected voicing (vi:fret pairs) so we can
+  // highlight those exact notes on the fretboard and dim everything else.
+  const activeVoicingKeys = new Set(); // "displayVi:f" for notes in current voicing
+  const hasActiveVoicing = hasChords && !rootOnly && state.selectedChords.length > 0 &&
+    state.selectedChords.some(name => {
+      const key = name + '_' + state.rootNote + '_' + state.tuning;
+      return state.chordShapeVoicings[key] && state.chordShapeVoicings[key].length > 0;
+    });
+  if (hasActiveVoicing) {
+    // Standard vi → physical string (diagrams always use [0,1,2,3,4,5])
+    // Physical string → display vi under current flipV
+    const displayOrder = state.flipV ? [5,4,3,2,1,0] : [0,1,2,3,4,5];
+    state.selectedChords.forEach(name => {
+      const key = name + '_' + state.rootNote + '_' + state.tuning;
+      const voicings = state.chordShapeVoicings[key];
+      if (!voicings || !voicings.length) return;
+      const idx = state.chordShapeIndex[key] || 0;
+      voicings[idx].forEach(({ vi, f }) => {
+        // vi is standard (physical string = vi), map to display vi
+        const displayVi = displayOrder.indexOf(vi);
+        if (displayVi !== -1) activeVoicingKeys.add(displayVi + ':' + f);
+      });
+    });
+  }
+
+  // ===== BUILD ACTIVE SCALE POSITION LOOKUP =====
+  const activeScalePosKeys = new Set(); // "vi:f" for notes in current scale position
+  const hasActiveScalePos = hasScales && state.selectedScales.length > 0;
+  if (hasActiveScalePos) {
+    const cacheKey = state.selectedScales[0] + '_' + state.rootNote + '_' + state.tuning;
+    if (!state.scalePositionCache[cacheKey]) {
+      const scale = SCALES[state.selectedScales[0]];
+      state.scalePositionCache[cacheKey] = computeScalePositions(scale.intervals, state.rootNote, TUNINGS[state.tuning], state.numFrets);
+      state.scalePositionIndex = 0;
+    }
+    const positions = state.scalePositionCache[cacheKey];
+    if (positions && positions.length > 0) {
+      const idx = Math.max(0, Math.min(state.scalePositionIndex, positions.length - 1));
+      positions[idx].forEach(({ vi: physVi, f }) => {
+        // physVi is physical string index (0=lowE); map to display vi under current flipV
+        const displayOrder = state.flipV ? [5,4,3,2,1,0] : [0,1,2,3,4,5];
+        const displayVi = displayOrder.indexOf(physVi);
+        if (displayVi !== -1) activeScalePosKeys.add(displayVi + ':' + f);
+      });
+    }
+  }
+
   for (let vi = 0; vi < numStrings; vi++) {
     const si = stringOrder[vi];
 
@@ -1185,7 +1307,14 @@ function draw(now) {
       }
       const drawX = x;
       const drawY = y + yOffset;
+      // If a chord voicing is active, only show notes in that voicing — hide all others
+      if (hasActiveVoicing && chordHits.length > 0 && !activeVoicingKeys.has(vi + ':' + f)) continue;
+      // If a scale position is active, only show scale notes in that position
+      if (hasActiveScalePos && scaleHits.length > 0 && !activeScalePosKeys.has(vi + ':' + f)) continue;
       const drawAlpha = Math.min(1, animT * 1.5);
+
+      // Record hit area for click-to-play
+      if (animT >= 1) drawnNoteHits.push({ vi, f, x: drawX, y: drawY });
 
       ctx.globalAlpha = drawAlpha;
 
@@ -1213,12 +1342,12 @@ function draw(now) {
       // Scale fill color
       let scaleFill = null;
       if (scaleHits.length > 1) scaleFill = '#ffd700';
-      else if (scaleHits.length === 1) scaleFill = scaleHits[0].color;
+      else if (scaleHits.length === 1) scaleFill = CHORD_INTERVAL_COLORS[scaleHits[0].interval] ?? scaleHits[0].color;
 
-      // Chord ring color
+      // Chord ring color — use interval role colour for single chord, gold for multi-chord overlap
       let chordRingColor = null;
       if (chordHits.length > 1) chordRingColor = '#ffd700';
-      else if (chordHits.length === 1) chordRingColor = chordHits[0].color;
+      else if (chordHits.length === 1) chordRingColor = CHORD_INTERVAL_COLORS[chordHits[0].interval] ?? chordHits[0].color;
 
       const isScaleCommon = scaleHits.length > 1 && state.selectedScales.length > 1;
       const isChordCommon = chordHits.length > 1 && state.selectedChords.length > 1;
@@ -1276,15 +1405,27 @@ function draw(now) {
 
       // Label
       if (animT > 0.5) {
-        let label = '';
-        if (state.labelMode === 'notes') label = NOTES[noteIndex];
-        else if (state.labelMode === 'intervals') label = INTERVAL_NAMES[interval];
-        else label = DEGREE_NAMES[interval];
-
-        ctx.font = `${isRoot ? '700' : '600'} ${label.length > 2 ? '9' : '10'}px "JetBrains Mono", monospace`;
-        ctx.fillStyle = scaleFill ? (isRoot || isScaleCommon ? '#000' : '#000000cc') : (chordRingColor ? '#fff' : '#000');
+        const textColor = scaleFill ? (isRoot || isScaleCommon ? '#000' : '#000000cc') : (chordRingColor ? '#fff' : '#000');
         ctx.textAlign = 'center';
-        ctx.fillText(label, drawX, drawY + 3.5);
+
+        if (scaleFill && state.labelMode === 'notes') {
+          // Two-line: note name (top) + degree number (bottom)
+          const noteName = NOTES[noteIndex];
+          const degName = DEGREE_NAMES[interval];
+          ctx.font = `700 ${noteName.length > 1 ? '8' : '9'}px "JetBrains Mono", monospace`;
+          ctx.fillStyle = textColor;
+          ctx.fillText(noteName, drawX, drawY - 0.5);
+          ctx.font = `600 7px "JetBrains Mono", monospace`;
+          ctx.fillText(degName, drawX, drawY + 7.5);
+        } else {
+          let label = '';
+          if (state.labelMode === 'notes') label = NOTES[noteIndex];
+          else if (state.labelMode === 'intervals') label = INTERVAL_NAMES[interval];
+          else label = DEGREE_NAMES[interval];
+          ctx.font = `${isRoot ? '700' : '600'} ${label.length > 2 ? '9' : '10'}px "JetBrains Mono", monospace`;
+          ctx.fillStyle = textColor;
+          ctx.fillText(label, drawX, drawY + 3.5);
+        }
 
         // Count badge: show how many scales+chords share this note
         const totalHits = scaleHits.length + chordHits.length;
@@ -1723,8 +1864,8 @@ function updateLegend() {
     }
   }
 
-  // Triad & Dyad breakdown for selected chords (advanced mode only)
-  if (hasChords && !state.simpleMode) {
+  // Triad & Dyad breakdown for selected chords (advanced mode only, hidden by default)
+  if (false && hasChords && !state.simpleMode) {
     infoHtml += '<div style="width:100%; margin-top:8px; padding-top:8px; border-top:1px solid var(--border);">';
     infoHtml += '<div style="font-size:0.72em; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:var(--text-muted); margin-bottom:8px;">Chord Anatomy: Triads &amp; Dyads</div>';
 
@@ -1861,7 +2002,7 @@ function buildRootNotes() {
     const btn = document.createElement('button');
     btn.className = 'note-btn' + (i === state.rootNote ? ' active' : '');
     btn.textContent = note;
-    btn.onclick = () => { state.rootNote = i; buildRootNotes(); draw(); };
+    btn.onclick = () => { state.rootNote = i; state.scalePositionCache = {}; state.scalePositionIndex = 0; buildRootNotes(); renderScalePositionNav(); draw(); };
     container.appendChild(btn);
   });
 }
@@ -1907,6 +2048,8 @@ function buildScaleList() {
           if (state.selectedScales.length >= SCALE_COLORS.length) state.selectedScales.shift();
           state.selectedScales.push(name);
         }
+        state.scalePositionIndex = 0;
+        state.scalePositionCache = {};
         updateCounts(); buildScaleList(); draw();
       };
       grid.appendChild(btn);
@@ -1914,6 +2057,14 @@ function buildScaleList() {
     catDiv.appendChild(grid);
     container.appendChild(catDiv);
   }
+  // Position navigator (appears below scale buttons when a scale is active)
+  let nav = document.getElementById('scalePositionNav');
+  if (!nav) {
+    nav = document.createElement('div');
+    nav.id = 'scalePositionNav';
+    container.parentNode.appendChild(nav);
+  }
+  renderScalePositionNav();
 }
 
 function buildChordList() {
@@ -2112,43 +2263,245 @@ function applyMode() {
 }
 
 // ===== CHORD SHAPE DIAGRAMS =====
+// Compute 5 CAGED-style scale positions across the neck.
+// Anchors each position to where the root note first appears on each string
+// (B, G, D, A, low E) — one position per CAGED shape.
+function computeScalePositions(scaleIntervals, rootNote, tuningMidi, numFrets) {
+  const scaleNoteSet = new Set(scaleIntervals.map(iv => (rootNote + iv) % 12));
+  const allNotes = [];
+  for (let vi = 0; vi < 6; vi++) {
+    for (let f = 0; f <= numFrets; f++) {
+      if (scaleNoteSet.has((tuningMidi[vi] + f) % 12)) allNotes.push({ vi, f });
+    }
+  }
+  // Find the first fret (within one octave) where the root appears on each of the 5 strings
+  // (B=4, G=3, D=2, A=1, lowE=0) — corresponds loosely to C, G, E, A, D CAGED shapes
+  const anchorStrings = [4, 3, 2, 1, 0];
+  const anchors = [];
+  for (const vi of anchorStrings) {
+    for (let f = 0; f <= 12; f++) {
+      if ((tuningMidi[vi] + f) % 12 === rootNote) { anchors.push(f); break; }
+    }
+  }
+  anchors.sort((a, b) => a - b);
+  const unique = [...new Set(anchors)];
+  return unique.slice(0, 5).map(anchor => {
+    const start = Math.max(0, anchor - 1);
+    const end   = Math.min(numFrets, anchor + 4);
+    return allNotes.filter(p => p.f >= start && p.f <= end);
+  }).filter(pos => pos.length > 0);
+}
+
+// Generates real guitar chord voicings using consecutive strings (4-6) with note doubling.
+// This produces standard shapes like open D (xx0232), barre A-shape, barre E-shape etc.
 function computeVoicings(noteIndices, tuningMidi, stringOrder, numFrets, maxSpan) {
   maxSpan = maxSpan || 4;
-  const numStrings = 6;
-  const notePositions = {};
-  noteIndices.forEach(n => { notePositions[n] = []; });
-  for (let vi = 0; vi < numStrings; vi++) {
-    const si = stringOrder[vi];
-    for (let f = 0; f <= numFrets; f++) {
-      const noteIndex = (tuningMidi[si] + f) % 12;
-      if (noteIndices.includes(noteIndex)) {
-        notePositions[noteIndex].push({ vi, f });
+  const numStrings = stringOrder.length; // 6
+  const chordNoteSet = new Set(noteIndices);
+  const allVoicings = [];
+
+  // Try groups of 4, 5, or 6 consecutive strings
+  for (let groupSize = 6; groupSize >= 4; groupSize--) {
+    for (let startVI = 0; startVI <= numStrings - groupSize; startVI++) {
+      // Build chord-tone fret positions available on each string in this group
+      const stringOpts = [];
+      let groupValid = true;
+      for (let g = 0; g < groupSize; g++) {
+        const vi = startVI + g;
+        const si = stringOrder[vi];
+        const opts = [];
+        for (let f = 0; f <= numFrets; f++) {
+          if (chordNoteSet.has((tuningMidi[si] + f) % 12)) opts.push({ vi, f });
+        }
+        if (!opts.length) { groupValid = false; break; }
+        stringOpts.push(opts);
       }
+      if (!groupValid) continue;
+
+      // Use a named const (not a function declaration) to avoid hoisting in loops
+      const tryNext = (g, current, minF, maxF) => {
+        if (g === groupSize) {
+          const covered = new Set(current.map(p => (tuningMidi[stringOrder[p.vi]] + p.f) % 12));
+          if (noteIndices.some(n => !covered.has(n))) return;
+          allVoicings.push([...current]);
+          return;
+        }
+        for (const p of stringOpts[g]) {
+          let nMin = minF, nMax = maxF;
+          if (p.f > 0) {
+            nMin = minF < 0 ? p.f : Math.min(minF, p.f);
+            nMax = maxF < 0 ? p.f : Math.max(maxF, p.f);
+            if (nMax - nMin > maxSpan) continue;
+          }
+          current.push(p);
+          tryNext(g + 1, current, nMin, nMax);
+          current.pop();
+        }
+      };
+      tryNext(0, [], -1, -1);
     }
   }
-  const voicings = [];
-  function findV(depth, current, usedStrings) {
-    if (depth === noteIndices.length) { voicings.push([...current]); return; }
-    const positions = notePositions[noteIndices[depth]];
-    for (const p of positions) {
-      if (usedStrings.has(p.vi)) continue;
-      const fretted = [...current, p].filter(c => c.f > 0).map(c => c.f);
-      const span = fretted.length > 0 ? (Math.max(...fretted) - Math.min(...fretted)) : 0;
-      if (span <= maxSpan) {
-        usedStrings.add(p.vi); current.push(p);
-        findV(depth + 1, current, usedStrings);
-        current.pop(); usedStrings.delete(p.vi);
-      }
-    }
-  }
-  findV(0, [], new Set());
-  voicings.sort((a, b) => Math.min(...a.map(v => v.f)) - Math.min(...b.map(v => v.f)));
+
+  // Deduplicate and sort by lowest fretted note
   const seen = new Set();
-  return voicings.filter(v => {
-    const key = v.map(p => p.vi + ':' + p.f).sort().join(',');
-    if (seen.has(key)) return false;
-    seen.add(key); return true;
+  return allVoicings
+    .filter(v => {
+      const key = v.map(p => p.vi + ':' + p.f).sort().join(',');
+      return seen.has(key) ? false : (seen.add(key), true);
+    })
+    .sort((a, b) => {
+      const aMin = Math.min(...a.map(p => p.f));
+      const bMin = Math.min(...b.map(p => p.f));
+      return aMin - bMin;
+    });
+}
+
+function computeCAGEDVoicings(noteIndices, tuningMidi, stringOrder, numFrets) {
+  const all = computeVoicings(noteIndices, tuningMidi, stringOrder, numFrets, 4);
+  if (!all.length) return all;
+  const rootNote = noteIndices[0];
+
+  // Require root in bass: the lowest string of the voicing must play the root.
+  // This selects standard shapes (open D, open C, barre chords) and rejects inversions.
+  const rootBass = all.filter(v => {
+    const lowestVi = Math.min(...v.map(p => p.vi));
+    const bass = v.find(p => p.vi === lowestVi);
+    return (tuningMidi[stringOrder[lowestVi]] + bass.f) % 12 === rootNote;
   });
+  // Fall back to all voicings if root-in-bass filter leaves fewer than 2
+  const candidates = rootBass.length >= 2 ? rootBass : all;
+
+  // Reject unplayable shapes: real open-position chords have all fretted notes
+  // within a tight range (span ≤ 2, frets 1-4). Shapes mixing open strings with
+  // high or spread frets are not physically coherent.
+  const playable = candidates.filter(v => {
+    const frettedFs = v.filter(p => p.f > 0).map(p => p.f);
+    if (!frettedFs.length) return true; // all-open voicing
+    const minF = Math.min(...frettedFs);
+    const maxF = Math.max(...frettedFs);
+    const span = maxF - minF;
+    const hasOpen = v.some(p => p.f === 0);
+    // Open-string shapes must be first-position AND span ≤ 2:
+    // Am (1-2)=span1 ✓, C (1-3)=span2 ✓, D (2-3)=span1 ✓, G (2-3)=span1 ✓
+    if (hasOpen) return minF <= 4 && span <= 2;
+    return true;
+  });
+  const pool = playable.length >= 2 ? playable : candidates;
+
+  // Group by 3-fret zone (floor(minFret/3)):
+  //   zone 0 (frets 0-2): open chord shapes  (C-shape, open D, open G etc.)
+  //   zone 1 (frets 3-5): A-shape barres
+  //   zone 2 (frets 6-8): E/G-shape barres
+  //   zone 3 (frets 9-11): higher barres
+  //   zone 4 (frets 12+): repeat shapes
+  // Score: open strings are primary (100pts each), then string count (20pts), then compact span
+  // This ensures standard open shapes (Am=x02210, C=x32010) beat any non-open alternative
+  const zones = new Map();
+  pool.forEach(v => {
+    const frettedFs = v.filter(p => p.f > 0).map(p => p.f);
+    const minF = frettedFs.length ? Math.min(...frettedFs) : 0;
+    const zone = Math.floor(minF / 3);
+    const numOpen = v.filter(p => p.f === 0).length;
+    const span = frettedFs.length > 1 ? Math.max(...frettedFs) - Math.min(...frettedFs) : 0;
+    const score = numOpen * 100 + v.length * 20 - span;
+    const existing = zones.get(zone);
+    if (!existing || score > existing.score) zones.set(zone, { v, score, minF });
+  });
+
+  return [...zones.values()]
+    .sort((a, b) => a.minF - b.minF)
+    .map(z => z.v)
+    .slice(0, 5);
+}
+
+// Compute 2-string dyad shapes for a chord.
+// Returns up to maxCount dyads sorted by fret position.
+function computeDyads(chordNoteIndices, rootNote, tuningMidi, numFrets, maxCount) {
+  maxCount = maxCount || 6;
+  const noteSet = new Set(chordNoteIndices);
+  const dyads = [];
+  const seen = new Set();
+  for (let vi1 = 0; vi1 < 5; vi1++) {
+    const vi2 = vi1 + 1;
+    for (let f1 = 0; f1 <= Math.min(numFrets, 12); f1++) {
+      const n1 = (tuningMidi[vi1] + f1) % 12;
+      if (!noteSet.has(n1)) continue;
+      for (let f2 = 0; f2 <= Math.min(numFrets, 12); f2++) {
+        const n2 = (tuningMidi[vi2] + f2) % 12;
+        if (!noteSet.has(n2) || n2 === n1) continue;
+        if (Math.abs(f1 - f2) > 3) continue;
+        const key = vi1+':'+f1+','+vi2+':'+f2;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const iv1 = (n1 - rootNote + 12) % 12;
+        const iv2 = (n2 - rootNote + 12) % 12;
+        const minF = Math.min(f1, f2);
+        dyads.push({ vi1, f1, n1, iv1, vi2, f2, n2, iv2, minF });
+      }
+    }
+  }
+  dyads.sort((a, b) => a.minF - b.minF || a.vi1 - b.vi1);
+  // Keep only unique interval-pair types to avoid repetition;
+  // prefer root-in-bass (root on lower string)
+  const typeSeen = new Map(); // "iv1,iv2" -> best
+  dyads.forEach(d => {
+    const typeKey = [d.iv1, d.iv2].sort().join(',');
+    const isRootBass = d.iv1 === 0; // root on lower string
+    if (!typeSeen.has(typeKey)) {
+      typeSeen.set(typeKey, { count: 0, items: [] });
+    }
+    const entry = typeSeen.get(typeKey);
+    if (entry.items.length < 2) entry.items.push(d);
+  });
+  const result = [];
+  typeSeen.forEach(e => result.push(...e.items));
+  return result.sort((a, b) => a.minF - b.minF || a.vi1 - b.vi1).slice(0, maxCount);
+}
+
+// Build a compact 2-string SVG for a dyad shape.
+function buildDyadSVG(dyad, tuningMidi, color) {
+  const W = 52, PL = 16, PR = 5, PT = 18, fretH = 14, nFrets = 4;
+  const strW = W - PL - PR;
+  const H = PT + fretH * nFrets + 8;
+  let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  const fretWindow = dyad.minF <= 1 ? 1 : dyad.minF;
+  // Nut or position indicator
+  const nutH = fretWindow === 1 ? 3 : 2;
+  const nutColor = fretWindow === 1 ? '#f0ead6' : '#555570';
+  svg += `<rect x="${PL}" y="${PT-nutH}" width="${strW}" height="${nutH}" fill="${nutColor}" rx="1"/>`;
+  if (fretWindow > 1) {
+    svg += `<text x="${PL-3}" y="${PT+fretH*0.65}" text-anchor="end" font-family="JetBrains Mono" font-size="9" font-weight="700" fill="#c0c0d0">${fretWindow}</text>`;
+  }
+  // Fret lines
+  for (let f = 1; f <= nFrets; f++) {
+    svg += `<line x1="${PL}" y1="${PT+f*fretH}" x2="${PL+strW}" y2="${PT+f*fretH}" stroke="#3a3a50" stroke-width="1"/>`;
+  }
+  // String lines (2)
+  [0, 1].forEach(s => {
+    const x = PL + s * strW;
+    svg += `<line x1="${x}" y1="${PT}" x2="${x}" y2="${PT+nFrets*fretH}" stroke="#55556680" stroke-width="1.5"/>`;
+  });
+  // Note dots
+  [[dyad.vi1, dyad.f1, dyad.n1, dyad.iv1, 0], [dyad.vi2, dyad.f2, dyad.n2, dyad.iv2, 1]].forEach(([vi, f, n, iv, s]) => {
+    const x = PL + s * strW;
+    const dotC = CHORD_INTERVAL_COLORS[iv] || '#dfe6e9';
+    const isRoot = iv === 0;
+    if (f === 0) {
+      svg += `<circle cx="${x}" cy="${PT-7}" r="3.5" fill="none" stroke="${dotC}" stroke-width="1.5"/>`;
+    } else {
+      const fw = f - fretWindow + 1;
+      if (fw < 1 || fw > nFrets) return;
+      const y = PT + (fw - 0.5) * fretH;
+      if (isRoot) {
+        svg += `<polygon points="${x},${y-5.5} ${x+5.5},${y} ${x},${y+5.5} ${x-5.5},${y}" fill="${dotC}" stroke="#fff" stroke-width="0.8"/>`;
+      } else {
+        svg += `<circle cx="${x}" cy="${y}" r="5" fill="${dotC}" stroke="#ffffff22" stroke-width="0.8"/>`;
+      }
+      svg += `<text x="${x}" y="${y+2.5}" text-anchor="middle" font-family="JetBrains Mono" font-size="6.5" font-weight="700" fill="#000">${NOTES[n]}</text>`;
+    }
+  });
+  svg += '</svg>';
+  return svg;
 }
 
 function renderChordDiagrams() {
@@ -2158,7 +2511,8 @@ function renderChordDiagrams() {
   }
   container.className = 'chord-diagrams-wrap';
   const tuningMidi = TUNINGS[state.tuning];
-  const stringOrder = state.flipV ? [5,4,3,2,1,0] : [0,1,2,3,4,5];
+  // Chord diagrams ALWAYS use standard order (low E left) — like every chord book
+  const diagStringOrder = [0,1,2,3,4,5];
   const strLabels = TUNING_LABELS[state.tuning]; // [low to high]
 
   let html = '';
@@ -2166,9 +2520,10 @@ function renderChordDiagrams() {
     const chord = CHORDS[chordName];
     const chordNoteIndices = chord.intervals.map(iv => (state.rootNote + iv) % 12);
     const color = CHORD_COLORS[ci % CHORD_COLORS.length];
-    const cacheKey = chordName + '_' + state.rootNote + '_' + state.tuning + '_' + state.flipV;
+    // cacheKey excludes flipV — diagrams are orientation-independent
+    const cacheKey = chordName + '_' + state.rootNote + '_' + state.tuning;
     if (!state.chordShapeVoicings[cacheKey]) {
-      state.chordShapeVoicings[cacheKey] = computeVoicings(chordNoteIndices, tuningMidi, stringOrder, state.numFrets, 4);
+      state.chordShapeVoicings[cacheKey] = computeCAGEDVoicings(chordNoteIndices, tuningMidi, diagStringOrder, state.numFrets);
       state.chordShapeIndex[cacheKey] = 0;
     }
     const voicings = state.chordShapeVoicings[cacheKey];
@@ -2177,7 +2532,7 @@ function renderChordDiagrams() {
     const voicing = voicings[idx];
     html += `<div class="chord-diagram-card" style="border-color:${color}55;">`;
     html += `<div class="cdg-title" style="color:${color};">${NOTES[state.rootNote]} ${chordName}</div>`;
-    html += buildDiagramSVG(voicing, tuningMidi, stringOrder, strLabels, chordNoteIndices, color);
+    html += buildDiagramSVG(voicing, tuningMidi, diagStringOrder, strLabels, chordNoteIndices, color);
     html += `<div class="cdg-nav">`;
     if (voicings.length > 1) {
       html += `<button onclick="shiftChordDiagram('${cacheKey}',-1)">&#9664;</button>`;
@@ -2186,7 +2541,27 @@ function renderChordDiagrams() {
     } else {
       html += `<span>1 voicing</span>`;
     }
-    html += `</div></div>`;
+    html += `</div>`;
+    html += `<button onclick="strumCurrentVoicing()" style="margin-top:6px;width:100%;padding:5px 0;background:#1a1a28;border:1px solid ${color}55;border-radius:6px;color:${color};font-size:0.8em;cursor:pointer;letter-spacing:0.5px;" title="Strum this chord">&#9654; Strum</button>`;
+
+    // Dyad section
+    const dyads = computeDyads(chordNoteIndices, state.rootNote, tuningMidi, state.numFrets, 6);
+    if (dyads.length) {
+      const STR_NAMES = ['E','A','D','G','B','e'];
+      html += `<div class="dyad-section">`;
+      html += `<div class="dyad-section-label">Dyads</div>`;
+      html += `<div class="dyad-row">`;
+      dyads.forEach(d => {
+        const label = STR_NAMES[d.vi1] + '-' + STR_NAMES[d.vi2];
+        html += `<div class="dyad-card" style="border-color:${color}44;" title="${label} strings">`;
+        html += buildDyadSVG(d, tuningMidi, color);
+        html += `<div class="dyad-label">${label}</div>`;
+        html += `</div>`;
+      });
+      html += `</div></div>`;
+    }
+
+    html += `</div>`;
   });
   container.innerHTML = html;
 }
@@ -2212,8 +2587,7 @@ function buildDiagramSVG(voicing, tuningMidi, stringOrder, strLabels, chordNoteI
       const si0 = stringOrder[vi];
       const noteIdx0 = tuningMidi[si0] % 12;
       const iv0 = (noteIdx0 - state.rootNote + 12) % 12;
-      const openIvColors = { 0: color, 3: '#fdcb6e', 4: '#fdcb6e', 7: '#00cec9', 10: '#a29bfe', 11: '#a29bfe' };
-      const openC = openIvColors[iv0] || '#dfe6e9';
+      const openC = CHORD_INTERVAL_COLORS[iv0] || '#dfe6e9';
       svg += `<circle cx="${x}" cy="${PT-10}" r="4" fill="none" stroke="${openC}" stroke-width="1.5"/>`;
     } else {
       svg += `<text x="${x}" y="${PT-9}" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#555570">${strLabels[si]}</text>`;
@@ -2241,9 +2615,8 @@ function buildDiagramSVG(voicing, tuningMidi, stringOrder, strLabels, chordNoteI
     svg += `<line x1="${x}" y1="${PT}" x2="${x}" y2="${PT+numFrets*fretH}" stroke="#55556680" stroke-width="1"/>`;
   }
 
-  // Interval colours within the diagram
-  // Root = chord colour, m3/M3 = amber, P5 = teal, b7 = violet, other = light grey
-  const ivColors = { 0: color, 3: '#fdcb6e', 4: '#fdcb6e', 7: '#00cec9', 10: '#a29bfe', 11: '#a29bfe' };
+  // Interval colours within the diagram — shared with fretboard via CHORD_INTERVAL_COLORS
+  const ivColors = { ...CHORD_INTERVAL_COLORS };
 
   // Note dots
   voicing.forEach(v => {
@@ -2275,12 +2648,172 @@ function shiftChordDiagram(cacheKey, dir) {
   if (!v) return;
   state.chordShapeIndex[cacheKey] = ((state.chordShapeIndex[cacheKey] || 0) + dir + v.length) % v.length;
   renderChordDiagrams();
+  draw(); // sync fretboard to selected voicing
 }
 
 function clearChordDiagramCache() {
   state.chordShapeVoicings = {};
   state.chordShapeIndex = {};
+  state.scalePositionCache = {};
+  state.scalePositionIndex = 0;
 }
+
+function shiftScalePosition(dir) {
+  if (!state.selectedScales.length) return;
+  const cacheKey = state.selectedScales[0] + '_' + state.rootNote + '_' + state.tuning;
+  if (!state.scalePositionCache[cacheKey]) return;
+  const len = state.scalePositionCache[cacheKey].length;
+  state.scalePositionIndex = ((state.scalePositionIndex || 0) + dir + len) % len;
+  renderScalePositionNav();
+  draw();
+}
+
+function renderScalePositionNav() {
+  const nav = document.getElementById('scalePositionNav');
+  if (!nav) return;
+  if (!state.selectedScales.length) { nav.innerHTML = ''; return; }
+  const cacheKey = state.selectedScales[0] + '_' + state.rootNote + '_' + state.tuning;
+  // Ensure positions are computed
+  if (!state.scalePositionCache[cacheKey]) {
+    const scale = SCALES[state.selectedScales[0]];
+    state.scalePositionCache[cacheKey] = computeScalePositions(scale.intervals, state.rootNote, TUNINGS[state.tuning], state.numFrets);
+    state.scalePositionIndex = 0;
+  }
+  const positions = state.scalePositionCache[cacheKey];
+  if (!positions || positions.length <= 1) { nav.innerHTML = ''; return; }
+  const idx = Math.max(0, Math.min(state.scalePositionIndex, positions.length - 1));
+  const color = SCALE_COLORS[0];
+  nav.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-top:8px;padding:4px 0;">
+    <button onclick="shiftScalePosition(-1)" style="background:#1a1a28;border:1px solid ${color}55;border-radius:4px;color:${color};cursor:pointer;padding:3px 8px;font-size:13px;">&#9664;</button>
+    <span style="color:${color};font-size:0.82em;min-width:70px;text-align:center;">Position ${idx+1}/${positions.length}</span>
+    <button onclick="shiftScalePosition(1)" style="background:#1a1a28;border:1px solid ${color}55;border-radius:4px;color:${color};cursor:pointer;padding:3px 8px;font-size:13px;">&#9654;</button>
+  </div>`;
+}
+
+// ===== GUITAR AUDIO ENGINE (Karplus-Strong plucked string + plate reverb) =====
+let gfxAudioCtx = null;
+let gfxMaster = null;
+
+function getGfxAudio() {
+  if (gfxAudioCtx) return gfxAudioCtx;
+  gfxAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Dynamics compressor — keeps loud chords clean
+  const comp = gfxAudioCtx.createDynamicsCompressor();
+  comp.threshold.value = -18; comp.knee.value = 10;
+  comp.ratio.value = 6; comp.attack.value = 0.003; comp.release.value = 0.15;
+  comp.connect(gfxAudioCtx.destination);
+
+  // Synthetic plate reverb via convolver
+  const rate = gfxAudioCtx.sampleRate;
+  const revLen = Math.floor(rate * 2.0);
+  const revBuf = gfxAudioCtx.createBuffer(2, revLen, rate);
+  for (let c = 0; c < 2; c++) {
+    const d = revBuf.getChannelData(c);
+    for (let i = 0; i < revLen; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / revLen, 2.8) * (c ? -0.9 : 1);
+  }
+  const conv = gfxAudioCtx.createConvolver();
+  conv.buffer = revBuf;
+  const revGain = gfxAudioCtx.createGain();
+  revGain.gain.value = 0.22;
+  conv.connect(revGain); revGain.connect(comp);
+
+  // Master bus: dry + wet
+  gfxMaster = gfxAudioCtx.createGain();
+  gfxMaster.gain.value = 0.65;
+  gfxMaster.connect(comp);
+  gfxMaster.connect(conv);
+
+  return gfxAudioCtx;
+}
+
+function midiToFreq(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
+
+function playGuitarNote(freq, when, duration) {
+  duration = duration || 2.2;
+  const ctx = getGfxAudio();
+  const rate = ctx.sampleRate;
+  const period = Math.round(rate / freq);
+  if (period < 2 || period > 10000) return;
+
+  // ---- Offline Karplus-Strong ----
+  // Compute the entire plucked string waveform in JS first,
+  // then play it as a plain AudioBuffer — zero feedback loops possible.
+  const numSamples = Math.floor(rate * duration);
+  const pcm = new Float32Array(numSamples);
+  const dl  = new Float32Array(period);
+
+  // Seed delay line with smoothed noise (pluck excitation)
+  for (let i = 0; i < period; i++) dl[i] = Math.random() * 2 - 1;
+  for (let i = 1; i < period; i++) dl[i] = dl[i] * 0.4 + dl[i - 1] * 0.6;
+
+  // Run KS: averaged low-pass feedback (damp controls brightness + sustain)
+  const damp = 0.4985;
+  let rp = 0;
+  for (let i = 0; i < numSamples; i++) {
+    const np = (rp + 1) % period;
+    pcm[i] = dl[rp];
+    dl[rp] = damp * (dl[rp] + dl[np]);
+    rp = np;
+  }
+
+  // Tiny fade-in to remove click, fade-out at end
+  const fadeIn  = Math.min(64, period);
+  const fadeOut = Math.floor(rate * 0.04);
+  for (let i = 0; i < fadeIn; i++)  pcm[i] *= i / fadeIn;
+  for (let i = 0; i < fadeOut; i++) pcm[numSamples - 1 - i] *= i / fadeOut;
+
+  const audioBuf = ctx.createBuffer(1, numSamples, rate);
+  audioBuf.getChannelData(0).set(pcm);
+
+  const src = ctx.createBufferSource();
+  src.buffer = audioBuf;
+
+  // Body EQ: warmth + high-freq roll-off
+  const body = ctx.createBiquadFilter();
+  body.type = 'peaking'; body.frequency.value = 220; body.gain.value = 4; body.Q.value = 1.0;
+  const shelf = ctx.createBiquadFilter();
+  shelf.type = 'highshelf'; shelf.frequency.value = 4000; shelf.gain.value = -5;
+
+  const env = ctx.createGain();
+  env.gain.value = 0.7;
+
+  src.connect(body); body.connect(shelf); shelf.connect(env); env.connect(gfxMaster);
+  src.start(when);
+  src.stop(when + duration);
+  src.onended = () => { try { env.disconnect(); } catch(e) {} };
+}
+
+// Strum all notes of the current voicing for the first selected chord
+function strumCurrentVoicing() {
+  const ctx = getGfxAudio();
+  if (ctx.state === 'suspended') ctx.resume();
+  const tuningMidi = TUNINGS[state.tuning];
+  const stringOrder = state.flipV ? [5,4,3,2,1,0] : [0,1,2,3,4,5];
+  if (!state.selectedChords.length) return;
+  const cacheKey = state.selectedChords[0] + '_' + state.rootNote + '_' + state.tuning;
+  const voicings = state.chordShapeVoicings[cacheKey];
+  if (!voicings || !voicings.length) return;
+  const voicing = voicings[state.chordShapeIndex[cacheKey] || 0];
+  const now = ctx.currentTime + 0.05;
+  voicing.forEach((v, i) => {
+    const midi = tuningMidi[stringOrder[v.vi]] + v.f;
+    playGuitarNote(midiToFreq(midi), now + i * 0.045);
+  });
+}
+
+// Play a single fretboard note (called on canvas click)
+function playFretboardNote(vi, f) {
+  const ctx = getGfxAudio();
+  if (ctx.state === 'suspended') ctx.resume();
+  const tuningMidi = TUNINGS[state.tuning];
+  const stringOrder = state.flipV ? [5,4,3,2,1,0] : [0,1,2,3,4,5];
+  playGuitarNote(midiToFreq(tuningMidi[stringOrder[vi]] + f), ctx.currentTime + 0.02, 2.5);
+}
+
+// Note hit areas populated during draw() for click detection
+const drawnNoteHits = [];
 
 // ===== TAB PLAYER =====
 let tabTimer = null;
