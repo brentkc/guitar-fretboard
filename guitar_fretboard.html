@@ -2396,7 +2396,7 @@ function getGfxAudio() {
 function midiToFreq(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
 
 function playGuitarNote(freq, when, duration) {
-  duration = duration || 3.5;
+  duration = duration || 2.2;
   const ctx = getGfxAudio();
   const rate = ctx.sampleRate;
   const period = Math.round(rate / freq);
@@ -2435,11 +2435,12 @@ function playGuitarNote(freq, when, duration) {
   body.Q.value = 1.2;
 
   const fb = ctx.createGain();
-  fb.gain.value = 0.996; // sustain length
+  fb.gain.value = 0.988; // lower = faster natural decay, prevents runaway feedback
 
   const env = ctx.createGain();
   env.gain.setValueAtTime(0.55, when);
   env.gain.exponentialRampToValueAtTime(0.0001, when + duration);
+  env.gain.setValueAtTime(0, when + duration + 0.05); // hard cutoff kills the loop
 
   // KS loop: src → delay → lpf → shelf → body → fb → delay
   // output: delay → env → master
@@ -2447,6 +2448,10 @@ function playGuitarNote(freq, when, duration) {
   delay.connect(lpf); lpf.connect(shelf); shelf.connect(body);
   body.connect(fb); fb.connect(delay);
   delay.connect(env); env.connect(gfxMaster);
+
+  // Disconnect everything after sound ends to free audio graph resources
+  const cleanupDelay = (when - ctx.currentTime + duration + 0.5) * 1000;
+  setTimeout(() => { try { env.disconnect(); fb.disconnect(); delay.disconnect(); } catch(e) {} }, Math.max(100, cleanupDelay));
 
   src.start(when);
   src.stop(when + (period / rate) * 4);
