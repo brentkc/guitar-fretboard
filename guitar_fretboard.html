@@ -2281,9 +2281,9 @@ function computeVoicings(noteIndices, tuningMidi, stringOrder, numFrets, maxSpan
       }
       if (!groupValid) continue;
 
-      function find(g, current, minF, maxF) {
+      // Use a named const (not a function declaration) to avoid hoisting in loops
+      const tryNext = (g, current, minF, maxF) => {
         if (g === groupSize) {
-          // All chord tones must be present at least once
           const covered = new Set(current.map(p => (tuningMidi[stringOrder[p.vi]] + p.f) % 12));
           if (noteIndices.some(n => !covered.has(n))) return;
           allVoicings.push([...current]);
@@ -2291,17 +2291,17 @@ function computeVoicings(noteIndices, tuningMidi, stringOrder, numFrets, maxSpan
         }
         for (const p of stringOpts[g]) {
           let nMin = minF, nMax = maxF;
-          if (p.f > 0) { // open strings don't contribute to span
+          if (p.f > 0) {
             nMin = minF < 0 ? p.f : Math.min(minF, p.f);
             nMax = maxF < 0 ? p.f : Math.max(maxF, p.f);
             if (nMax - nMin > maxSpan) continue;
           }
           current.push(p);
-          find(g + 1, current, nMin, nMax);
+          tryNext(g + 1, current, nMin, nMax);
           current.pop();
         }
-      }
-      find(0, [], -1, -1);
+      };
+      tryNext(0, [], -1, -1);
     }
   }
 
