@@ -2334,20 +2334,31 @@ function computeCAGEDVoicings(noteIndices, tuningMidi, stringOrder, numFrets) {
   // Fall back to all voicings if root-in-bass filter leaves fewer than 2
   const candidates = rootBass.length >= 2 ? rootBass : all;
 
-  // Group by 3-fret zone (floor(minFret/3)). This naturally separates:
-  //   zone 0 (frets 0-2): open chord shapes
+  // Reject unplayable shapes: open strings mixed with high frets are not real chord shapes.
+  // A voicing with open strings is only valid in first position (minFretted <= 4).
+  const playable = candidates.filter(v => {
+    const frettedFs = v.filter(p => p.f > 0).map(p => p.f);
+    const minF = frettedFs.length ? Math.min(...frettedFs) : 0;
+    const hasOpen = v.some(p => p.f === 0);
+    return !hasOpen || minF <= 4;
+  });
+  const pool = playable.length >= 2 ? playable : candidates;
+
+  // Group by 3-fret zone (floor(minFret/3)):
+  //   zone 0 (frets 0-2): open chord shapes  (C-shape, open D, open G etc.)
   //   zone 1 (frets 3-5): A-shape barres
   //   zone 2 (frets 6-8): E/G-shape barres
   //   zone 3 (frets 9-11): higher barres
   //   zone 4 (frets 12+): repeat shapes
-  // Score: prefer more strings, then more open strings (open G beats E-shape barre at same fret)
+  // Score: prefer more strings, smaller span as tiebreaker
   const zones = new Map();
-  candidates.forEach(v => {
+  pool.forEach(v => {
     const frettedFs = v.filter(p => p.f > 0).map(p => p.f);
     const minF = frettedFs.length ? Math.min(...frettedFs) : 0;
     const zone = Math.floor(minF / 3);
     const numOpen = v.filter(p => p.f === 0).length;
-    const score = v.length * 10 + numOpen;
+    const span = frettedFs.length > 1 ? Math.max(...frettedFs) - Math.min(...frettedFs) : 0;
+    const score = v.length * 100 + numOpen * 10 - span;
     const existing = zones.get(zone);
     if (!existing || score > existing.score) zones.set(zone, { v, score, minF });
   });
