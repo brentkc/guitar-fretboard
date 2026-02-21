@@ -841,6 +841,20 @@ const canvas = document.getElementById('fretboard');
 const ctx = canvas.getContext('2d');
 let dpr = window.devicePixelRatio || 1;
 
+// Click a note dot to hear it
+canvas.style.cursor = 'pointer';
+canvas.addEventListener('click', function(e) {
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX - rect.left) * (canvas.width / rect.width / dpr);
+  const cy = (e.clientY - rect.top) * (canvas.height / rect.height / dpr);
+  let best = null, bestD = FB.noteRadius * 2.5;
+  for (const n of drawnNoteHits) {
+    const d = Math.hypot(n.x - cx, n.y - cy);
+    if (d < bestD) { bestD = d; best = n; }
+  }
+  if (best) playFretboardNote(best.vi, best.f);
+});
+
 const FB = {
   paddingLeft: 60,
   paddingRight: 30,
@@ -951,6 +965,7 @@ function getNoteAnimProgress(fret, stringVi, now) {
 
 // ===== DRAWING =====
 function draw(now) {
+  drawnNoteHits.length = 0; // reset click targets each frame
   const vert = state.vertical;
   const { w, h } = resizeCanvas();
   ctx.clearRect(0, 0, w, h);
@@ -1227,6 +1242,9 @@ function draw(now) {
       // If a chord voicing is active, only show notes in that voicing — hide all others
       if (hasActiveVoicing && chordHits.length > 0 && !activeVoicingKeys.has(vi + ':' + f)) continue;
       const drawAlpha = Math.min(1, animT * 1.5);
+
+      // Record hit area for click-to-play
+      if (animT >= 1) drawnNoteHits.push({ vi, f, x: drawX, y: drawY });
 
       ctx.globalAlpha = drawAlpha;
 
@@ -2231,7 +2249,9 @@ function renderChordDiagrams() {
     } else {
       html += `<span>1 voicing</span>`;
     }
-    html += `</div></div>`;
+    html += `</div>`;
+    html += `<button onclick="strumCurrentVoicing()" style="margin-top:6px;width:100%;padding:5px 0;background:#1a1a28;border:1px solid ${color}55;border-radius:6px;color:${color};font-size:0.8em;cursor:pointer;letter-spacing:0.5px;" title="Strum this chord">&#9654; Strum</button>`;
+    html += `</div>`;
   });
   container.innerHTML = html;
 }
@@ -2325,6 +2345,133 @@ function clearChordDiagramCache() {
   state.chordShapeVoicings = {};
   state.chordShapeIndex = {};
 }
+
+// ===== GUITAR AUDIO ENGINE (Karplus-Strong plucked string + plate reverb) =====
+let gfxAudioCtx = null;
+let gfxMaster = null;
+
+function getGfxAudio() {
+  if (gfxAudioCtx) return gfxAudioCtx;
+  gfxAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Dynamics compressor — keeps loud chords clean
+  const comp = gfxAudioCtx.createDynamicsCompressor();
+  comp.threshold.value = -18; comp.knee.value = 10;
+  comp.ratio.value = 6; comp.attack.value = 0.003; comp.release.value = 0.15;
+  comp.connect(gfxAudioCtx.destination);
+
+  // Synthetic plate reverb via convolver
+  const rate = gfxAudioCtx.sampleRate;
+  const revLen = Math.floor(rate * 2.0);
+  const revBuf = gfxAudioCtx.createBuffer(2, revLen, rate);
+  for (let c = 0; c < 2; c++) {
+    const d = revBuf.getChannelData(c);
+    for (let i = 0; i < revLen; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / revLen, 2.8) * (c ? -0.9 : 1);
+  }
+  const conv = gfxAudioCtx.createConvolver();
+  conv.buffer = revBuf;
+  const revGain = gfxAudioCtx.createGain();
+  revGain.gain.value = 0.22;
+  conv.connect(revGain); revGain.connect(comp);
+
+  // Master bus: dry + wet
+  gfxMaster = gfxAudioCtx.createGain();
+  gfxMaster.gain.value = 0.65;
+  gfxMaster.connect(comp);
+  gfxMaster.connect(conv);
+
+  return gfxAudioCtx;
+}
+
+function midiToFreq(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
+
+function playGuitarNote(freq, when, duration) {
+  duration = duration || 3.5;
+  const ctx = getGfxAudio();
+  const rate = ctx.sampleRate;
+  const period = Math.round(rate / freq);
+  if (period <= 2 || period > 44100) return;
+
+  // Karplus-Strong: noise burst -> delay loop with low-pass damping
+  const excitBuf = ctx.createBuffer(1, period, rate);
+  const d = excitBuf.getChannelData(0);
+  for (let i = 0; i < period; i++) d[i] = Math.random() * 2 - 1;
+  // Pre-smooth excitation: softer attack, less click
+  for (let i = 1; i < period; i++) d[i] = d[i] * 0.45 + d[i-1] * 0.55;
+
+  const src = ctx.createBufferSource();
+  src.buffer = excitBuf;
+
+  const delay = ctx.createDelay(2.0);
+  delay.delayTime.value = period / rate;
+
+  // String damping: high-freq dies faster than low-freq
+  const lpf = ctx.createBiquadFilter();
+  lpf.type = 'lowpass';
+  lpf.frequency.value = Math.min(freq * 9, 7000);
+  lpf.Q.value = 0.15;
+
+  // Warmth: gentle high-shelf cut
+  const shelf = ctx.createBiquadFilter();
+  shelf.type = 'highshelf';
+  shelf.frequency.value = 3500;
+  shelf.gain.value = -5;
+
+  // Body presence: slight low-mid boost
+  const body = ctx.createBiquadFilter();
+  body.type = 'peaking';
+  body.frequency.value = 250;
+  body.gain.value = 3;
+  body.Q.value = 1.2;
+
+  const fb = ctx.createGain();
+  fb.gain.value = 0.996; // sustain length
+
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0.55, when);
+  env.gain.exponentialRampToValueAtTime(0.0001, when + duration);
+
+  // KS loop: src → delay → lpf → shelf → body → fb → delay
+  // output: delay → env → master
+  src.connect(delay);
+  delay.connect(lpf); lpf.connect(shelf); shelf.connect(body);
+  body.connect(fb); fb.connect(delay);
+  delay.connect(env); env.connect(gfxMaster);
+
+  src.start(when);
+  src.stop(when + (period / rate) * 4);
+}
+
+// Strum all notes of the current voicing for the first selected chord
+function strumCurrentVoicing() {
+  const ctx = getGfxAudio();
+  if (ctx.state === 'suspended') ctx.resume();
+  const tuningMidi = TUNINGS[state.tuning];
+  const stringOrder = state.flipV ? [5,4,3,2,1,0] : [0,1,2,3,4,5];
+  if (!state.selectedChords.length) return;
+  const cacheKey = state.selectedChords[0] + '_' + state.rootNote + '_' + state.tuning + '_' + state.flipV;
+  const voicings = state.chordShapeVoicings[cacheKey];
+  if (!voicings || !voicings.length) return;
+  const voicing = voicings[state.chordShapeIndex[cacheKey] || 0];
+  const now = ctx.currentTime + 0.05;
+  voicing.forEach((v, i) => {
+    const midi = tuningMidi[stringOrder[v.vi]] + v.f;
+    playGuitarNote(midiToFreq(midi), now + i * 0.045);
+  });
+}
+
+// Play a single fretboard note (called on canvas click)
+function playFretboardNote(vi, f) {
+  const ctx = getGfxAudio();
+  if (ctx.state === 'suspended') ctx.resume();
+  const tuningMidi = TUNINGS[state.tuning];
+  const stringOrder = state.flipV ? [5,4,3,2,1,0] : [0,1,2,3,4,5];
+  playGuitarNote(midiToFreq(tuningMidi[stringOrder[vi]] + f), ctx.currentTime + 0.02, 2.5);
+}
+
+// Note hit areas populated during draw() for click detection
+const drawnNoteHits = [];
 
 // ===== TAB PLAYER =====
 let tabTimer = null;
