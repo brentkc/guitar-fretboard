@@ -1182,19 +1182,26 @@ function draw(now) {
   // ===== BUILD ACTIVE VOICING LOOKUP =====
   // For each chord, get the currently-selected voicing (vi:fret pairs) so we can
   // highlight those exact notes on the fretboard and dim everything else.
-  const activeVoicingKeys = new Set(); // "vi:f" strings for notes in the current voicing
+  const activeVoicingKeys = new Set(); // "displayVi:f" for notes in current voicing
   const hasActiveVoicing = hasChords && !rootOnly && state.selectedChords.length > 0 &&
     state.selectedChords.some(name => {
-      const key = name + '_' + state.rootNote + '_' + state.tuning + '_' + state.flipV;
+      const key = name + '_' + state.rootNote + '_' + state.tuning;
       return state.chordShapeVoicings[key] && state.chordShapeVoicings[key].length > 0;
     });
   if (hasActiveVoicing) {
+    // Standard vi → physical string (diagrams always use [0,1,2,3,4,5])
+    // Physical string → display vi under current flipV
+    const displayOrder = state.flipV ? [5,4,3,2,1,0] : [0,1,2,3,4,5];
     state.selectedChords.forEach(name => {
-      const key = name + '_' + state.rootNote + '_' + state.tuning + '_' + state.flipV;
+      const key = name + '_' + state.rootNote + '_' + state.tuning;
       const voicings = state.chordShapeVoicings[key];
       if (!voicings || !voicings.length) return;
       const idx = state.chordShapeIndex[key] || 0;
-      voicings[idx].forEach(({ vi, f }) => activeVoicingKeys.add(vi + ':' + f));
+      voicings[idx].forEach(({ vi, f }) => {
+        // vi is standard (physical string = vi), map to display vi
+        const displayVi = displayOrder.indexOf(vi);
+        if (displayVi !== -1) activeVoicingKeys.add(displayVi + ':' + f);
+      });
     });
   }
 
@@ -2221,7 +2228,8 @@ function renderChordDiagrams() {
   }
   container.className = 'chord-diagrams-wrap';
   const tuningMidi = TUNINGS[state.tuning];
-  const stringOrder = state.flipV ? [5,4,3,2,1,0] : [0,1,2,3,4,5];
+  // Chord diagrams ALWAYS use standard order (low E left) — like every chord book
+  const diagStringOrder = [0,1,2,3,4,5];
   const strLabels = TUNING_LABELS[state.tuning]; // [low to high]
 
   let html = '';
@@ -2229,9 +2237,10 @@ function renderChordDiagrams() {
     const chord = CHORDS[chordName];
     const chordNoteIndices = chord.intervals.map(iv => (state.rootNote + iv) % 12);
     const color = CHORD_COLORS[ci % CHORD_COLORS.length];
-    const cacheKey = chordName + '_' + state.rootNote + '_' + state.tuning + '_' + state.flipV;
+    // cacheKey excludes flipV — diagrams are orientation-independent
+    const cacheKey = chordName + '_' + state.rootNote + '_' + state.tuning;
     if (!state.chordShapeVoicings[cacheKey]) {
-      state.chordShapeVoicings[cacheKey] = computeVoicings(chordNoteIndices, tuningMidi, stringOrder, state.numFrets, 4);
+      state.chordShapeVoicings[cacheKey] = computeVoicings(chordNoteIndices, tuningMidi, diagStringOrder, state.numFrets, 4);
       state.chordShapeIndex[cacheKey] = 0;
     }
     const voicings = state.chordShapeVoicings[cacheKey];
@@ -2240,7 +2249,7 @@ function renderChordDiagrams() {
     const voicing = voicings[idx];
     html += `<div class="chord-diagram-card" style="border-color:${color}55;">`;
     html += `<div class="cdg-title" style="color:${color};">${NOTES[state.rootNote]} ${chordName}</div>`;
-    html += buildDiagramSVG(voicing, tuningMidi, stringOrder, strLabels, chordNoteIndices, color);
+    html += buildDiagramSVG(voicing, tuningMidi, diagStringOrder, strLabels, chordNoteIndices, color);
     html += `<div class="cdg-nav">`;
     if (voicings.length > 1) {
       html += `<button onclick="shiftChordDiagram('${cacheKey}',-1)">&#9664;</button>`;
@@ -2450,7 +2459,7 @@ function strumCurrentVoicing() {
   const tuningMidi = TUNINGS[state.tuning];
   const stringOrder = state.flipV ? [5,4,3,2,1,0] : [0,1,2,3,4,5];
   if (!state.selectedChords.length) return;
-  const cacheKey = state.selectedChords[0] + '_' + state.rootNote + '_' + state.tuning + '_' + state.flipV;
+  const cacheKey = state.selectedChords[0] + '_' + state.rootNote + '_' + state.tuning;
   const voicings = state.chordShapeVoicings[cacheKey];
   if (!voicings || !voicings.length) return;
   const voicing = voicings[state.chordShapeIndex[cacheKey] || 0];
