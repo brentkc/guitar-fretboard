@@ -562,7 +562,10 @@
         <div style="color:var(--text-muted); font-size:0.9em;">Select a root, then pick scales and/or chords below.</div>
         <div style="margin-top:8px;">
           <span style="display:inline-block; width:12px; height:12px; background:#4FC3F7; border-radius:50%; vertical-align:middle;"></span> Scale notes = circles<br>
-          <span style="display:inline-block; width:12px; height:12px; border:2.5px solid #e84393; border-radius:3px; vertical-align:middle;"></span> Chord tones = square rings<br>
+          <span style="display:inline-block; width:12px; height:12px; border:2.5px solid #ff4757; border-radius:3px; vertical-align:middle;"></span> <span style="color:#ff4757;">Root</span> &nbsp;
+          <span style="display:inline-block; width:12px; height:12px; border:2.5px solid #fdcb6e; border-radius:3px; vertical-align:middle;"></span> <span style="color:#fdcb6e;">3rd</span> &nbsp;
+          <span style="display:inline-block; width:12px; height:12px; border:2.5px solid #00cec9; border-radius:3px; vertical-align:middle;"></span> <span style="color:#00cec9;">5th</span> &nbsp;
+          <span style="display:inline-block; width:12px; height:12px; border:2.5px solid #a29bfe; border-radius:3px; vertical-align:middle;"></span> <span style="color:#a29bfe;">7th</span><br>
           <span style="display:inline-block; width:14px; height:14px; background:var(--accent); border-radius:3px; transform:rotate(45deg); vertical-align:middle; margin-right:2px;"></span> Root note = diamond<br>
           <span style="display:inline-block; width:12px; height:12px; background:#ffd700; border:2px solid #fff; border-radius:50%; vertical-align:middle;"></span> Common = gold
         </div>
@@ -752,6 +755,23 @@ const CHORD_COLORS = [
   '#e17055', '#00b894', '#fab1a0', '#a29bfe',
 ];
 
+// Interval role colours — used on fretboard & chord diagrams for per-note differentiation
+// Root=red, 3rds=amber, 5th=teal, 7ths=violet, 2nds=sky, 4th=mint, tritone=orange, 6ths=lime
+const CHORD_INTERVAL_COLORS = {
+  0:  '#ff4757', // Root        — red
+  1:  '#74b9ff', // b2          — sky blue
+  2:  '#74b9ff', // M2/sus2     — sky blue
+  3:  '#fdcb6e', // m3          — amber
+  4:  '#fdcb6e', // M3          — amber
+  5:  '#55efc4', // P4/sus4     — mint
+  6:  '#e17055', // Tritone     — orange
+  7:  '#00cec9', // P5          — teal
+  8:  '#a3cb38', // b6          — lime
+  9:  '#a3cb38', // M6          — lime
+  10: '#a29bfe', // b7          — violet
+  11: '#a29bfe', // M7          — violet
+};
+
 // Highlight group colors for triads/dyads — max contrast, bold, unmistakable
 const HIGHLIGHT_COLORS = [
   '#ff1744', // vivid red
@@ -886,7 +906,7 @@ function getChordHits(noteIndex) {
     const iv = getInterval(state.rootNote, noteIndex);
     if (CHORDS[name].intervals.includes(iv)) {
       const ci = state.selectedChords.indexOf(name) % CHORD_COLORS.length;
-      results.push({ name, color: CHORD_COLORS[ci], type: 'chord' });
+      results.push({ name, color: CHORD_COLORS[ci], type: 'chord', interval: iv });
     }
   }
   return results;
@@ -1215,10 +1235,10 @@ function draw(now) {
       if (scaleHits.length > 1) scaleFill = '#ffd700';
       else if (scaleHits.length === 1) scaleFill = scaleHits[0].color;
 
-      // Chord ring color
+      // Chord ring color — use interval role colour for single chord, gold for multi-chord overlap
       let chordRingColor = null;
       if (chordHits.length > 1) chordRingColor = '#ffd700';
-      else if (chordHits.length === 1) chordRingColor = chordHits[0].color;
+      else if (chordHits.length === 1) chordRingColor = CHORD_INTERVAL_COLORS[chordHits[0].interval] ?? chordHits[0].color;
 
       const isScaleCommon = scaleHits.length > 1 && state.selectedScales.length > 1;
       const isChordCommon = chordHits.length > 1 && state.selectedChords.length > 1;
@@ -2212,8 +2232,7 @@ function buildDiagramSVG(voicing, tuningMidi, stringOrder, strLabels, chordNoteI
       const si0 = stringOrder[vi];
       const noteIdx0 = tuningMidi[si0] % 12;
       const iv0 = (noteIdx0 - state.rootNote + 12) % 12;
-      const openIvColors = { 0: color, 3: '#fdcb6e', 4: '#fdcb6e', 7: '#00cec9', 10: '#a29bfe', 11: '#a29bfe' };
-      const openC = openIvColors[iv0] || '#dfe6e9';
+      const openC = CHORD_INTERVAL_COLORS[iv0] || '#dfe6e9';
       svg += `<circle cx="${x}" cy="${PT-10}" r="4" fill="none" stroke="${openC}" stroke-width="1.5"/>`;
     } else {
       svg += `<text x="${x}" y="${PT-9}" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#555570">${strLabels[si]}</text>`;
@@ -2241,9 +2260,8 @@ function buildDiagramSVG(voicing, tuningMidi, stringOrder, strLabels, chordNoteI
     svg += `<line x1="${x}" y1="${PT}" x2="${x}" y2="${PT+numFrets*fretH}" stroke="#55556680" stroke-width="1"/>`;
   }
 
-  // Interval colours within the diagram
-  // Root = chord colour, m3/M3 = amber, P5 = teal, b7 = violet, other = light grey
-  const ivColors = { 0: color, 3: '#fdcb6e', 4: '#fdcb6e', 7: '#00cec9', 10: '#a29bfe', 11: '#a29bfe' };
+  // Interval colours within the diagram — shared with fretboard via CHORD_INTERVAL_COLORS
+  const ivColors = { ...CHORD_INTERVAL_COLORS };
 
   // Note dots
   voicing.forEach(v => {
