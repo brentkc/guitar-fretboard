@@ -427,6 +427,43 @@
   .cdg-nav button:hover { border-color: var(--accent); color: var(--text-primary); }
   .cdg-nav span { font-size: 0.68em; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
 
+  /* ===== DYAD SECTION ===== */
+  .dyad-section {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .dyad-section-label {
+    font-size: 0.6em;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .dyad-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .dyad-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 5px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .dyad-card:hover { border-color: var(--accent); }
+  .dyad-label {
+    font-size: 0.55em;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 2px;
+  }
+
   /* ===== TAB PLAYER ===== */
   .tab-textarea {
     width: 100%;
@@ -2334,13 +2371,20 @@ function computeCAGEDVoicings(noteIndices, tuningMidi, stringOrder, numFrets) {
   // Fall back to all voicings if root-in-bass filter leaves fewer than 2
   const candidates = rootBass.length >= 2 ? rootBass : all;
 
-  // Reject unplayable shapes: open strings mixed with high frets are not real chord shapes.
-  // A voicing with open strings is only valid in first position (minFretted <= 4).
+  // Reject unplayable shapes: real open-position chords have all fretted notes
+  // within a tight range (span ≤ 2, frets 1-4). Shapes mixing open strings with
+  // high or spread frets are not physically coherent.
   const playable = candidates.filter(v => {
     const frettedFs = v.filter(p => p.f > 0).map(p => p.f);
-    const minF = frettedFs.length ? Math.min(...frettedFs) : 0;
+    if (!frettedFs.length) return true; // all-open voicing
+    const minF = Math.min(...frettedFs);
+    const maxF = Math.max(...frettedFs);
+    const span = maxF - minF;
     const hasOpen = v.some(p => p.f === 0);
-    return !hasOpen || minF <= 4;
+    // Open-string shapes must be first-position AND span ≤ 2:
+    // Am (1-2)=span1 ✓, C (1-3)=span2 ✓, D (2-3)=span1 ✓, G (2-3)=span1 ✓
+    if (hasOpen) return minF <= 4 && span <= 2;
+    return true;
   });
   const pool = playable.length >= 2 ? playable : candidates;
 
@@ -2350,7 +2394,8 @@ function computeCAGEDVoicings(noteIndices, tuningMidi, stringOrder, numFrets) {
   //   zone 2 (frets 6-8): E/G-shape barres
   //   zone 3 (frets 9-11): higher barres
   //   zone 4 (frets 12+): repeat shapes
-  // Score: prefer more strings, smaller span as tiebreaker
+  // Score: open strings are primary (100pts each), then string count (20pts), then compact span
+  // This ensures standard open shapes (Am=x02210, C=x32010) beat any non-open alternative
   const zones = new Map();
   pool.forEach(v => {
     const frettedFs = v.filter(p => p.f > 0).map(p => p.f);
@@ -2358,7 +2403,7 @@ function computeCAGEDVoicings(noteIndices, tuningMidi, stringOrder, numFrets) {
     const zone = Math.floor(minF / 3);
     const numOpen = v.filter(p => p.f === 0).length;
     const span = frettedFs.length > 1 ? Math.max(...frettedFs) - Math.min(...frettedFs) : 0;
-    const score = v.length * 100 + numOpen * 10 - span;
+    const score = numOpen * 100 + v.length * 20 - span;
     const existing = zones.get(zone);
     if (!existing || score > existing.score) zones.set(zone, { v, score, minF });
   });
@@ -2367,6 +2412,96 @@ function computeCAGEDVoicings(noteIndices, tuningMidi, stringOrder, numFrets) {
     .sort((a, b) => a.minF - b.minF)
     .map(z => z.v)
     .slice(0, 5);
+}
+
+// Compute 2-string dyad shapes for a chord.
+// Returns up to maxCount dyads sorted by fret position.
+function computeDyads(chordNoteIndices, rootNote, tuningMidi, numFrets, maxCount) {
+  maxCount = maxCount || 6;
+  const noteSet = new Set(chordNoteIndices);
+  const dyads = [];
+  const seen = new Set();
+  for (let vi1 = 0; vi1 < 5; vi1++) {
+    const vi2 = vi1 + 1;
+    for (let f1 = 0; f1 <= Math.min(numFrets, 12); f1++) {
+      const n1 = (tuningMidi[vi1] + f1) % 12;
+      if (!noteSet.has(n1)) continue;
+      for (let f2 = 0; f2 <= Math.min(numFrets, 12); f2++) {
+        const n2 = (tuningMidi[vi2] + f2) % 12;
+        if (!noteSet.has(n2) || n2 === n1) continue;
+        if (Math.abs(f1 - f2) > 3) continue;
+        const key = vi1+':'+f1+','+vi2+':'+f2;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const iv1 = (n1 - rootNote + 12) % 12;
+        const iv2 = (n2 - rootNote + 12) % 12;
+        const minF = Math.min(f1, f2);
+        dyads.push({ vi1, f1, n1, iv1, vi2, f2, n2, iv2, minF });
+      }
+    }
+  }
+  dyads.sort((a, b) => a.minF - b.minF || a.vi1 - b.vi1);
+  // Keep only unique interval-pair types to avoid repetition;
+  // prefer root-in-bass (root on lower string)
+  const typeSeen = new Map(); // "iv1,iv2" -> best
+  dyads.forEach(d => {
+    const typeKey = [d.iv1, d.iv2].sort().join(',');
+    const isRootBass = d.iv1 === 0; // root on lower string
+    if (!typeSeen.has(typeKey)) {
+      typeSeen.set(typeKey, { count: 0, items: [] });
+    }
+    const entry = typeSeen.get(typeKey);
+    if (entry.items.length < 2) entry.items.push(d);
+  });
+  const result = [];
+  typeSeen.forEach(e => result.push(...e.items));
+  return result.sort((a, b) => a.minF - b.minF || a.vi1 - b.vi1).slice(0, maxCount);
+}
+
+// Build a compact 2-string SVG for a dyad shape.
+function buildDyadSVG(dyad, tuningMidi, color) {
+  const W = 48, PL = 11, PR = 5, PT = 18, fretH = 14, nFrets = 4;
+  const strW = W - PL - PR;
+  const H = PT + fretH * nFrets + 8;
+  let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  const fretWindow = dyad.minF <= 1 ? 1 : dyad.minF;
+  // Nut or position indicator
+  const nutH = fretWindow === 1 ? 3 : 2;
+  const nutColor = fretWindow === 1 ? '#f0ead6' : '#555570';
+  svg += `<rect x="${PL}" y="${PT-nutH}" width="${strW}" height="${nutH}" fill="${nutColor}" rx="1"/>`;
+  if (fretWindow > 1) {
+    svg += `<text x="${PL-2}" y="${PT+fretH*0.55}" text-anchor="end" font-family="JetBrains Mono" font-size="7" fill="#8888aa">${fretWindow}</text>`;
+  }
+  // Fret lines
+  for (let f = 1; f <= nFrets; f++) {
+    svg += `<line x1="${PL}" y1="${PT+f*fretH}" x2="${PL+strW}" y2="${PT+f*fretH}" stroke="#3a3a50" stroke-width="1"/>`;
+  }
+  // String lines (2)
+  [0, 1].forEach(s => {
+    const x = PL + s * strW;
+    svg += `<line x1="${x}" y1="${PT}" x2="${x}" y2="${PT+nFrets*fretH}" stroke="#55556680" stroke-width="1.5"/>`;
+  });
+  // Note dots
+  [[dyad.vi1, dyad.f1, dyad.n1, dyad.iv1, 0], [dyad.vi2, dyad.f2, dyad.n2, dyad.iv2, 1]].forEach(([vi, f, n, iv, s]) => {
+    const x = PL + s * strW;
+    const dotC = CHORD_INTERVAL_COLORS[iv] || '#dfe6e9';
+    const isRoot = iv === 0;
+    if (f === 0) {
+      svg += `<circle cx="${x}" cy="${PT-7}" r="3.5" fill="none" stroke="${dotC}" stroke-width="1.5"/>`;
+    } else {
+      const fw = f - fretWindow + 1;
+      if (fw < 1 || fw > nFrets) return;
+      const y = PT + (fw - 0.5) * fretH;
+      if (isRoot) {
+        svg += `<polygon points="${x},${y-5.5} ${x+5.5},${y} ${x},${y+5.5} ${x-5.5},${y}" fill="${dotC}" stroke="#fff" stroke-width="0.8"/>`;
+      } else {
+        svg += `<circle cx="${x}" cy="${y}" r="5" fill="${dotC}" stroke="#ffffff22" stroke-width="0.8"/>`;
+      }
+      svg += `<text x="${x}" y="${y+2.5}" text-anchor="middle" font-family="JetBrains Mono" font-size="6.5" font-weight="700" fill="#000">${NOTES[n]}</text>`;
+    }
+  });
+  svg += '</svg>';
+  return svg;
 }
 
 function renderChordDiagrams() {
@@ -2408,6 +2543,24 @@ function renderChordDiagrams() {
     }
     html += `</div>`;
     html += `<button onclick="strumCurrentVoicing()" style="margin-top:6px;width:100%;padding:5px 0;background:#1a1a28;border:1px solid ${color}55;border-radius:6px;color:${color};font-size:0.8em;cursor:pointer;letter-spacing:0.5px;" title="Strum this chord">&#9654; Strum</button>`;
+
+    // Dyad section
+    const dyads = computeDyads(chordNoteIndices, state.rootNote, tuningMidi, state.numFrets, 6);
+    if (dyads.length) {
+      const STR_NAMES = ['E','A','D','G','B','e'];
+      html += `<div class="dyad-section">`;
+      html += `<div class="dyad-section-label">Dyads</div>`;
+      html += `<div class="dyad-row">`;
+      dyads.forEach(d => {
+        const label = STR_NAMES[d.vi1] + '-' + STR_NAMES[d.vi2];
+        html += `<div class="dyad-card" style="border-color:${color}44;" title="${label} strings">`;
+        html += buildDyadSVG(d, tuningMidi, color);
+        html += `<div class="dyad-label">${label}</div>`;
+        html += `</div>`;
+      });
+      html += `</div></div>`;
+    }
+
     html += `</div>`;
   });
   container.innerHTML = html;
