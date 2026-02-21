@@ -804,8 +804,8 @@ const SIMPLE_CHORDS = new Set([
   'Dominant 7', 'Major 7', 'Minor 7',
 ]);
 const SIMPLE_CHORD_CAT_NAMES = {
-  'Triads': 'Basic Triads',
-  'Seventh Chords': 'Common 7ths',
+  'Triads': 'Chords',
+  'Seventh Chords': 'Extended Chords',
 };
 const SIMPLE_TUNINGS = new Set(['standard', 'dropD', 'halfDown', 'fullDown']);
 
@@ -1224,9 +1224,7 @@ function draw(now) {
       }
       const drawX = x;
       const drawY = y + yOffset;
-      // Dim notes not in the active voicing so the current chord shape stands out
-      const inActiveVoicing = !hasActiveVoicing || activeVoicingKeys.has(vi + ':' + f);
-      const drawAlpha = Math.min(1, animT * 1.5) * (inActiveVoicing ? 1 : 0.2);
+      const drawAlpha = Math.min(1, animT * 1.5);
 
       ctx.globalAlpha = drawAlpha;
 
