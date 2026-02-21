@@ -498,7 +498,7 @@
     <div class="toolbar-group">
       <span class="toolbar-label">View</span>
       <button class="toggle-btn" id="flipH" onclick="toggleFlipH()" title="Flip for left-handed">&#8596; Flip H</button>
-      <button class="toggle-btn" id="flipV" onclick="toggleFlipV()" title="Flip string order">&#8597; Flip V</button>
+      <button class="toggle-btn active" id="flipV" onclick="toggleFlipV()" title="Flip string order">&#8597; Flip V</button>
       <button class="toggle-btn advanced-only" id="rotateBtn" onclick="toggleVertical()" title="Rotate fretboard vertical with falling notes">&#10227; Vertical</button>
     </div>
     <div class="toolbar-group">
@@ -815,7 +815,7 @@ let state = {
   selectedScales: [],
   selectedChords: [],
   flipH: false,
-  flipV: false,
+  flipV: true,
   labelMode: 'notes',
   tuning: 'standard',
   numFrets: 15,
