@@ -2285,9 +2285,10 @@ function computeScalePositions(scaleIntervals, rootNote, tuningMidi, numFrets) {
   }
   anchors.sort((a, b) => a - b);
   const unique = [...new Set(anchors)];
+  // Each CAGED position spans 4-5 frets. Window: anchor-1 to anchor+3 = 5 frets.
   return unique.slice(0, 5).map(anchor => {
     const start = Math.max(0, anchor - 1);
-    const end   = Math.min(numFrets, anchor + 4);
+    const end   = Math.min(numFrets, anchor + 3);
     return allNotes.filter(p => p.f >= start && p.f <= end);
   }).filter(pos => pos.length > 0);
 }
