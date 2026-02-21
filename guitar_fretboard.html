@@ -1342,15 +1342,27 @@ function draw(now) {
 
       // Label
       if (animT > 0.5) {
-        let label = '';
-        if (state.labelMode === 'notes') label = NOTES[noteIndex];
-        else if (state.labelMode === 'intervals') label = INTERVAL_NAMES[interval];
-        else label = DEGREE_NAMES[interval];
-
-        ctx.font = `${isRoot ? '700' : '600'} ${label.length > 2 ? '9' : '10'}px "JetBrains Mono", monospace`;
-        ctx.fillStyle = scaleFill ? (isRoot || isScaleCommon ? '#000' : '#000000cc') : (chordRingColor ? '#fff' : '#000');
+        const textColor = scaleFill ? (isRoot || isScaleCommon ? '#000' : '#000000cc') : (chordRingColor ? '#fff' : '#000');
         ctx.textAlign = 'center';
-        ctx.fillText(label, drawX, drawY + 3.5);
+
+        if (scaleFill && state.labelMode === 'notes') {
+          // Two-line: note name (top) + degree number (bottom)
+          const noteName = NOTES[noteIndex];
+          const degName = DEGREE_NAMES[interval];
+          ctx.font = `700 ${noteName.length > 1 ? '8' : '9'}px "JetBrains Mono", monospace`;
+          ctx.fillStyle = textColor;
+          ctx.fillText(noteName, drawX, drawY - 0.5);
+          ctx.font = `600 7px "JetBrains Mono", monospace`;
+          ctx.fillText(degName, drawX, drawY + 7.5);
+        } else {
+          let label = '';
+          if (state.labelMode === 'notes') label = NOTES[noteIndex];
+          else if (state.labelMode === 'intervals') label = INTERVAL_NAMES[interval];
+          else label = DEGREE_NAMES[interval];
+          ctx.font = `${isRoot ? '700' : '600'} ${label.length > 2 ? '9' : '10'}px "JetBrains Mono", monospace`;
+          ctx.fillStyle = textColor;
+          ctx.fillText(label, drawX, drawY + 3.5);
+        }
 
         // Count badge: show how many scales+chords share this note
         const totalHits = scaleHits.length + chordHits.length;
