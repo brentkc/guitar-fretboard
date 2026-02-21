@@ -1164,8 +1164,8 @@ function draw(now) {
   const hasChords = state.selectedChords.length > 0;
   const rootOnly = !hasScales && !hasChords;
 
-  // ===== CHORD POSITION BOXES & CONNECTING LINES =====
-  // Draw a subtle band + dashed line connecting notes for each chord "box position"
+  // ===== CHORD POSITION BOXES =====
+  // Highlight fret regions where all chord tones are playable (one box per position)
   if (hasChords && !rootOnly) {
     state.selectedChords.forEach((chordName, ci) => {
       const chord = CHORDS[chordName];
@@ -1173,7 +1173,7 @@ function draw(now) {
       const numTones = chordNoteSet.size;
       const color = CHORD_COLORS[ci % CHORD_COLORS.length];
 
-      // Slide a 4-fret window; record positions where all chord tones are present
+      // Slide a 4-fret window; find spans where all chord tones are present
       const positions = [];
       let lastEnd = -99;
       for (let sf = 0; sf <= state.numFrets; sf++) {
@@ -1193,64 +1193,36 @@ function draw(now) {
         }
       }
 
-      positions.forEach(({ sf, ef }) => {
-        // --- Background band ---
+      positions.forEach(({ sf, ef }, posIdx) => {
         ctx.save();
         if (!vert) {
           const bx1 = sf === 0 ? (flipH ? fbX2 : fbX1) : getFretCoord(fretPositions[sf - 1]);
           const bx2 = getFretCoord(fretPositions[ef]);
           const left = Math.min(bx1, bx2), right = Math.max(bx1, bx2);
-          ctx.fillStyle = color + '14';
-          ctx.strokeStyle = color + '45';
-          ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.roundRect(left, fbY1 + 2, right - left, fbY2 - fbY1 - 4, 5);
+          ctx.fillStyle = color + '22';
+          ctx.strokeStyle = color + '80';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.roundRect(left + 1, fbY1 + 2, right - left - 2, fbY2 - fbY1 - 4, 6);
           ctx.fill(); ctx.stroke();
+          // Position label
+          ctx.font = '700 10px "JetBrains Mono", monospace';
+          ctx.fillStyle = color + 'cc';
+          ctx.textAlign = 'center';
+          ctx.fillText(`P${posIdx + 1}`, (left + right) / 2, fbY2 - 4);
         } else {
           const by1 = sf === 0 ? fbY1 : getFretCoord(fretPositions[sf - 1]);
           const by2 = getFretCoord(fretPositions[ef]);
           const top = Math.min(by1, by2), bot = Math.max(by1, by2);
-          ctx.fillStyle = color + '14';
-          ctx.strokeStyle = color + '45';
-          ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.roundRect(fbX1 + 2, top, fbX2 - fbX1 - 4, bot - top, 5);
+          ctx.fillStyle = color + '22';
+          ctx.strokeStyle = color + '80';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.roundRect(fbX1 + 2, top + 1, fbX2 - fbX1 - 4, bot - top - 2, 6);
           ctx.fill(); ctx.stroke();
+          ctx.font = '700 10px "JetBrains Mono", monospace';
+          ctx.fillStyle = color + 'cc';
+          ctx.textAlign = 'left';
+          ctx.fillText(`P${posIdx + 1}`, fbX2 + 4, (top + bot) / 2 + 4);
         }
-        ctx.restore();
-
-        // --- Collect one note per string (first chord tone found in window) ---
-        const notePts = [];
-        for (let vi2 = 0; vi2 < numStrings; vi2++) {
-          const si2 = stringOrder[vi2];
-          for (let f2 = sf; f2 <= ef; f2++) {
-            const ni = (tuningMidi[si2] + f2) % 12;
-            if (chordNoteSet.has(ni)) {
-              let px, py;
-              if (f2 === 0) {
-                if (vert) { px = getStringCoord(vi2); py = fbY1 - FB.nutWidth / 2; }
-                else { const nx = flipH ? (w - FB.paddingRight) : FB.paddingLeft; px = flipH ? nx + FB.nutWidth / 2 : nx - FB.nutWidth / 2; py = getStringCoord(vi2); }
-              } else {
-                const mp = (fretPositions[f2 - 1] + fretPositions[f2]) / 2;
-                const pt = getNoteXY(mp, vi2); px = pt.x; py = pt.y;
-              }
-              notePts.push({ x: px, y: py });
-              break; // one per string
-            }
-          }
-        }
-
-        if (notePts.length < 2) return;
-
-        // --- Dashed connecting line ---
-        ctx.save();
-        ctx.strokeStyle = color + 'cc';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 4]);
-        ctx.shadowColor = color + '70';
-        ctx.shadowBlur = 5;
-        ctx.beginPath();
-        ctx.moveTo(notePts[0].x, notePts[0].y);
-        for (let i = 1; i < notePts.length; i++) ctx.lineTo(notePts[i].x, notePts[i].y);
-        ctx.stroke();
         ctx.restore();
       });
     });
