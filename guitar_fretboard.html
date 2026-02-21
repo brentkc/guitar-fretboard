@@ -907,7 +907,7 @@ function getScaleHits(noteIndex) {
     const iv = getInterval(state.rootNote, noteIndex);
     if (SCALES[name].intervals.includes(iv)) {
       const ci = state.selectedScales.indexOf(name) % SCALE_COLORS.length;
-      results.push({ name, color: SCALE_COLORS[ci], type: 'scale' });
+      results.push({ name, color: SCALE_COLORS[ci], type: 'scale', interval: iv });
     }
   }
   return results;
@@ -1279,7 +1279,7 @@ function draw(now) {
       // Scale fill color
       let scaleFill = null;
       if (scaleHits.length > 1) scaleFill = '#ffd700';
-      else if (scaleHits.length === 1) scaleFill = scaleHits[0].color;
+      else if (scaleHits.length === 1) scaleFill = CHORD_INTERVAL_COLORS[scaleHits[0].interval] ?? scaleHits[0].color;
 
       // Chord ring color — use interval role colour for single chord, gold for multi-chord overlap
       let chordRingColor = null;
