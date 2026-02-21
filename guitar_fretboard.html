@@ -834,6 +834,8 @@ let state = {
   tabLoop: false,
   chordShapeVoicings: {}, // cacheKey -> voicings array
   chordShapeIndex: {},    // cacheKey -> current index
+  scalePositionIndex: 0,  // current position (0-4)
+  scalePositionCache: {}, // cacheKey -> [{vi,f}[]]
 };
 
 // ===== CANVAS =====
@@ -1205,6 +1207,28 @@ function draw(now) {
     });
   }
 
+  // ===== BUILD ACTIVE SCALE POSITION LOOKUP =====
+  const activeScalePosKeys = new Set(); // "vi:f" for notes in current scale position
+  const hasActiveScalePos = hasScales && state.selectedScales.length > 0;
+  if (hasActiveScalePos) {
+    const cacheKey = state.selectedScales[0] + '_' + state.rootNote + '_' + state.tuning;
+    if (!state.scalePositionCache[cacheKey]) {
+      const scale = SCALES[state.selectedScales[0]];
+      state.scalePositionCache[cacheKey] = computeScalePositions(scale.intervals, state.rootNote, TUNINGS[state.tuning], state.numFrets);
+      state.scalePositionIndex = 0;
+    }
+    const positions = state.scalePositionCache[cacheKey];
+    if (positions && positions.length > 0) {
+      const idx = Math.max(0, Math.min(state.scalePositionIndex, positions.length - 1));
+      positions[idx].forEach(({ vi: physVi, f }) => {
+        // physVi is physical string index (0=lowE); map to display vi under current flipV
+        const displayOrder = state.flipV ? [5,4,3,2,1,0] : [0,1,2,3,4,5];
+        const displayVi = displayOrder.indexOf(physVi);
+        if (displayVi !== -1) activeScalePosKeys.add(displayVi + ':' + f);
+      });
+    }
+  }
+
   for (let vi = 0; vi < numStrings; vi++) {
     const si = stringOrder[vi];
 
@@ -1248,6 +1272,8 @@ function draw(now) {
       const drawY = y + yOffset;
       // If a chord voicing is active, only show notes in that voicing — hide all others
       if (hasActiveVoicing && chordHits.length > 0 && !activeVoicingKeys.has(vi + ':' + f)) continue;
+      // If a scale position is active, only show scale notes in that position
+      if (hasActiveScalePos && scaleHits.length > 0 && !activeScalePosKeys.has(vi + ':' + f)) continue;
       const drawAlpha = Math.min(1, animT * 1.5);
 
       // Record hit area for click-to-play
@@ -1939,7 +1965,7 @@ function buildRootNotes() {
     const btn = document.createElement('button');
     btn.className = 'note-btn' + (i === state.rootNote ? ' active' : '');
     btn.textContent = note;
-    btn.onclick = () => { state.rootNote = i; buildRootNotes(); draw(); };
+    btn.onclick = () => { state.rootNote = i; state.scalePositionCache = {}; state.scalePositionIndex = 0; buildRootNotes(); renderScalePositionNav(); draw(); };
     container.appendChild(btn);
   });
 }
@@ -1985,6 +2011,8 @@ function buildScaleList() {
           if (state.selectedScales.length >= SCALE_COLORS.length) state.selectedScales.shift();
           state.selectedScales.push(name);
         }
+        state.scalePositionIndex = 0;
+        state.scalePositionCache = {};
         updateCounts(); buildScaleList(); draw();
       };
       grid.appendChild(btn);
@@ -1992,6 +2020,14 @@ function buildScaleList() {
     catDiv.appendChild(grid);
     container.appendChild(catDiv);
   }
+  // Position navigator (appears below scale buttons when a scale is active)
+  let nav = document.getElementById('scalePositionNav');
+  if (!nav) {
+    nav = document.createElement('div');
+    nav.id = 'scalePositionNav';
+    container.parentNode.appendChild(nav);
+  }
+  renderScalePositionNav();
 }
 
 function buildChordList() {
@@ -2190,6 +2226,35 @@ function applyMode() {
 }
 
 // ===== CHORD SHAPE DIAGRAMS =====
+// Compute 5 CAGED-style scale positions across the neck.
+// Anchors each position to where the root note first appears on each string
+// (B, G, D, A, low E) — one position per CAGED shape.
+function computeScalePositions(scaleIntervals, rootNote, tuningMidi, numFrets) {
+  const scaleNoteSet = new Set(scaleIntervals.map(iv => (rootNote + iv) % 12));
+  const allNotes = [];
+  for (let vi = 0; vi < 6; vi++) {
+    for (let f = 0; f <= numFrets; f++) {
+      if (scaleNoteSet.has((tuningMidi[vi] + f) % 12)) allNotes.push({ vi, f });
+    }
+  }
+  // Find the first fret (within one octave) where the root appears on each of the 5 strings
+  // (B=4, G=3, D=2, A=1, lowE=0) — corresponds loosely to C, G, E, A, D CAGED shapes
+  const anchorStrings = [4, 3, 2, 1, 0];
+  const anchors = [];
+  for (const vi of anchorStrings) {
+    for (let f = 0; f <= 12; f++) {
+      if ((tuningMidi[vi] + f) % 12 === rootNote) { anchors.push(f); break; }
+    }
+  }
+  anchors.sort((a, b) => a - b);
+  const unique = [...new Set(anchors)];
+  return unique.slice(0, 5).map(anchor => {
+    const start = Math.max(0, anchor - 1);
+    const end   = Math.min(numFrets, anchor + 4);
+    return allNotes.filter(p => p.f >= start && p.f <= end);
+  }).filter(pos => pos.length > 0);
+}
+
 // Generates real guitar chord voicings using consecutive strings (4-6) with note doubling.
 // This produces standard shapes like open D (xx0232), barre A-shape, barre E-shape etc.
 function computeVoicings(noteIndices, tuningMidi, stringOrder, numFrets, maxSpan) {
@@ -2409,6 +2474,40 @@ function shiftChordDiagram(cacheKey, dir) {
 function clearChordDiagramCache() {
   state.chordShapeVoicings = {};
   state.chordShapeIndex = {};
+  state.scalePositionCache = {};
+  state.scalePositionIndex = 0;
+}
+
+function shiftScalePosition(dir) {
+  if (!state.selectedScales.length) return;
+  const cacheKey = state.selectedScales[0] + '_' + state.rootNote + '_' + state.tuning;
+  if (!state.scalePositionCache[cacheKey]) return;
+  const len = state.scalePositionCache[cacheKey].length;
+  state.scalePositionIndex = ((state.scalePositionIndex || 0) + dir + len) % len;
+  renderScalePositionNav();
+  draw();
+}
+
+function renderScalePositionNav() {
+  const nav = document.getElementById('scalePositionNav');
+  if (!nav) return;
+  if (!state.selectedScales.length) { nav.innerHTML = ''; return; }
+  const cacheKey = state.selectedScales[0] + '_' + state.rootNote + '_' + state.tuning;
+  // Ensure positions are computed
+  if (!state.scalePositionCache[cacheKey]) {
+    const scale = SCALES[state.selectedScales[0]];
+    state.scalePositionCache[cacheKey] = computeScalePositions(scale.intervals, state.rootNote, TUNINGS[state.tuning], state.numFrets);
+    state.scalePositionIndex = 0;
+  }
+  const positions = state.scalePositionCache[cacheKey];
+  if (!positions || positions.length <= 1) { nav.innerHTML = ''; return; }
+  const idx = Math.max(0, Math.min(state.scalePositionIndex, positions.length - 1));
+  const color = SCALE_COLORS[0];
+  nav.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-top:8px;padding:4px 0;">
+    <button onclick="shiftScalePosition(-1)" style="background:#1a1a28;border:1px solid ${color}55;border-radius:4px;color:${color};cursor:pointer;padding:3px 8px;font-size:13px;">&#9664;</button>
+    <span style="color:${color};font-size:0.82em;min-width:70px;text-align:center;">Position ${idx+1}/${positions.length}</span>
+    <button onclick="shiftScalePosition(1)" style="background:#1a1a28;border:1px solid ${color}55;border-radius:4px;color:${color};cursor:pointer;padding:3px 8px;font-size:13px;">&#9654;</button>
+  </div>`;
 }
 
 // ===== GUITAR AUDIO ENGINE (Karplus-Strong plucked string + plate reverb) =====
