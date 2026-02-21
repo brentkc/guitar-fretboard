@@ -1164,67 +1164,22 @@ function draw(now) {
   const hasChords = state.selectedChords.length > 0;
   const rootOnly = !hasScales && !hasChords;
 
-  // ===== CHORD POSITION BOXES =====
-  // Highlight fret regions where all chord tones are playable (one box per position)
-  if (hasChords && !rootOnly) {
-    state.selectedChords.forEach((chordName, ci) => {
-      const chord = CHORDS[chordName];
-      const chordNoteSet = new Set(chord.intervals.map(iv => (state.rootNote + iv) % 12));
-      const numTones = chordNoteSet.size;
-      const color = CHORD_COLORS[ci % CHORD_COLORS.length];
-
-      // Slide a 4-fret window; find spans where all chord tones are present
-      const positions = [];
-      let lastEnd = -99;
-      for (let sf = 0; sf <= state.numFrets; sf++) {
-        if (sf <= lastEnd) continue;
-        const ef = Math.min(sf + 4, state.numFrets);
-        const tonesFound = new Set();
-        for (let vi2 = 0; vi2 < numStrings; vi2++) {
-          const si2 = stringOrder[vi2];
-          for (let f2 = sf; f2 <= ef; f2++) {
-            const ni = (tuningMidi[si2] + f2) % 12;
-            if (chordNoteSet.has(ni)) tonesFound.add(ni);
-          }
-        }
-        if (tonesFound.size >= numTones) {
-          positions.push({ sf, ef });
-          lastEnd = ef;
-        }
-      }
-
-      positions.forEach(({ sf, ef }, posIdx) => {
-        ctx.save();
-        if (!vert) {
-          const bx1 = sf === 0 ? (flipH ? fbX2 : fbX1) : getFretCoord(fretPositions[sf - 1]);
-          const bx2 = getFretCoord(fretPositions[ef]);
-          const left = Math.min(bx1, bx2), right = Math.max(bx1, bx2);
-          ctx.fillStyle = color + '22';
-          ctx.strokeStyle = color + '80';
-          ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.roundRect(left + 1, fbY1 + 2, right - left - 2, fbY2 - fbY1 - 4, 6);
-          ctx.fill(); ctx.stroke();
-          // Position label
-          ctx.font = '700 10px "JetBrains Mono", monospace';
-          ctx.fillStyle = color + 'cc';
-          ctx.textAlign = 'center';
-          ctx.fillText(`P${posIdx + 1}`, (left + right) / 2, fbY2 - 4);
-        } else {
-          const by1 = sf === 0 ? fbY1 : getFretCoord(fretPositions[sf - 1]);
-          const by2 = getFretCoord(fretPositions[ef]);
-          const top = Math.min(by1, by2), bot = Math.max(by1, by2);
-          ctx.fillStyle = color + '22';
-          ctx.strokeStyle = color + '80';
-          ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.roundRect(fbX1 + 2, top + 1, fbX2 - fbX1 - 4, bot - top - 2, 6);
-          ctx.fill(); ctx.stroke();
-          ctx.font = '700 10px "JetBrains Mono", monospace';
-          ctx.fillStyle = color + 'cc';
-          ctx.textAlign = 'left';
-          ctx.fillText(`P${posIdx + 1}`, fbX2 + 4, (top + bot) / 2 + 4);
-        }
-        ctx.restore();
-      });
+  // ===== BUILD ACTIVE VOICING LOOKUP =====
+  // For each chord, get the currently-selected voicing (vi:fret pairs) so we can
+  // highlight those exact notes on the fretboard and dim everything else.
+  const activeVoicingKeys = new Set(); // "vi:f" strings for notes in the current voicing
+  const hasActiveVoicing = hasChords && !rootOnly && state.selectedChords.length > 0 &&
+    state.selectedChords.some(name => {
+      const key = name + '_' + state.rootNote + '_' + state.tuning + '_' + state.flipV;
+      return state.chordShapeVoicings[key] && state.chordShapeVoicings[key].length > 0;
+    });
+  if (hasActiveVoicing) {
+    state.selectedChords.forEach(name => {
+      const key = name + '_' + state.rootNote + '_' + state.tuning + '_' + state.flipV;
+      const voicings = state.chordShapeVoicings[key];
+      if (!voicings || !voicings.length) return;
+      const idx = state.chordShapeIndex[key] || 0;
+      voicings[idx].forEach(({ vi, f }) => activeVoicingKeys.add(vi + ':' + f));
     });
   }
 
@@ -1269,7 +1224,9 @@ function draw(now) {
       }
       const drawX = x;
       const drawY = y + yOffset;
-      const drawAlpha = Math.min(1, animT * 1.5);
+      // Dim notes not in the active voicing so the current chord shape stands out
+      const inActiveVoicing = !hasActiveVoicing || activeVoicingKeys.has(vi + ':' + f);
+      const drawAlpha = Math.min(1, animT * 1.5) * (inActiveVoicing ? 1 : 0.2);
 
       ctx.globalAlpha = drawAlpha;
 
@@ -1807,8 +1764,8 @@ function updateLegend() {
     }
   }
 
-  // Triad & Dyad breakdown for selected chords (advanced mode only)
-  if (hasChords && !state.simpleMode) {
+  // Triad & Dyad breakdown for selected chords (advanced mode only, hidden by default)
+  if (false && hasChords && !state.simpleMode) {
     infoHtml += '<div style="width:100%; margin-top:8px; padding-top:8px; border-top:1px solid var(--border);">';
     infoHtml += '<div style="font-size:0.72em; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:var(--text-muted); margin-bottom:8px;">Chord Anatomy: Triads &amp; Dyads</div>';
 
@@ -2357,6 +2314,7 @@ function shiftChordDiagram(cacheKey, dir) {
   if (!v) return;
   state.chordShapeIndex[cacheKey] = ((state.chordShapeIndex[cacheKey] || 0) + dir + v.length) % v.length;
   renderChordDiagrams();
+  draw(); // sync fretboard to selected voicing
 }
 
 function clearChordDiagramCache() {
